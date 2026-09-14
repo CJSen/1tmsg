@@ -1,3 +1,5 @@
+[English](README.en.md) · [简体中文](README.md)
+
 # 1tmsg · 阅后即焚的秘密消息
 
 把密码、密钥、内部链接、一段文字发给别人 —— **对方看一次，服务器上的内容就立刻删除。**
@@ -9,16 +11,6 @@
 </p>
 
 > 💡 **5 分钟部署，免费额度内运行。** 你只需要一个 Cloudflare 账号，剩下的照抄命令即可。
-
-<!--
-📷 图片清单（文件放在 docs/static/，显示尺寸由本文件里的 width 控制；换图只需同名覆盖）
-   create.png   创建页整页截图 2336×1568 —— 顶部横幅 宽560 / 预览区 宽600
-   sent.png     创建成功页     1628×1150 —— 预览区 宽600
-   view.png     查看页         1616×924  —— 预览区 宽600
-   mobile.png   手机端长截图   1280×4223 —— 预览区 宽300
-   注 1：顶部横幅暂复用 create.png（原计划的 hero.png 未产出，产出后可把顶部 src 换成 hero.png 并调小 width）
-   注 2：截图取自支持图片的版本（wrangler.jsonc.example.r2）；默认部署的版本没有图片入口。
--->
 
 ---
 
@@ -78,15 +70,15 @@
 
 ---
 
-## 手动部署/一键部署：约 5 分钟
+## 一键部署/网页部署/命令行部署：约 5 分钟
 
 ### 准备工作
 
 | 需要 | 说明 |
 |---|---|
 | Cloudflare 账号(必须) | 免费注册：https://dash.cloudflare.com/sign-up |
-| Git (手动部署)| 克隆仓库用；没装的话去 https://git-scm.com 下载 |
-| Node.js 22+ (手动部署)| 终端执行 `node -v` 查看；没有的话去 https://nodejs.org 下载 LTS 版 |
+| Git (命令行部署)| 克隆仓库用；没装的话去 https://git-scm.com 下载 |
+| Node.js 22+ (命令行部署)| 终端执行 `node -v` 查看；没有的话去 https://nodejs.org 下载 LTS 版 |
 
 ### 第 1 步 · 选版本并部署（两个 tab 二选一）
 
@@ -96,11 +88,24 @@
 <summary>🟦 仅文字（默认）</summary>
 
 #### 一键部署:
+
  [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/CJSen/1tmsg)
 
-#### 手动部署
+ > 一键部署方式仅供体验,无法收到后续更新.建议网页部署或命令行部署,这样方便同步上游代码立即更新。
 
-**① 克隆仓库,复制配置模板**
+#### 网页部署:
+
+```md
+ 将本仓库fork到自己仓库
+
+ 进入[Cloudflare Workers](https://deploy.workers.cloudflare.com/)网页控制台,
+
+ 连接自己的github账号,选择fork的仓库进行部署,无需修改配置,直接部署即可.
+```
+
+#### 命令行部署:
+
+**① 克隆仓库,复制配置模板(如有需要可自定义修改)**
 
 ```bash
 git clone https://github.com/<你的账号>/1tmsg.git
@@ -134,11 +139,26 @@ npm run deploy
 <summary>🟨 支持图片（需 R2,需绑卡）</summary>
 
 #### 一键部署
- [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/CJSen/1tmsg/tree/deploy-images)
+> 暂不支持一键部署,请使用网页部署或者命令行部署,部署前请先开通 R2 并建桶,否则部署会失败。
 
 > ⚠️ 支持图片版：按钮会自动建 R2 桶，但**你的账号需先开通 R2（绑支付方式）**，否则开通桶那一步会失败。仅文字版零门槛。
 
-#### 手动部署
+#### 网页部署:
+
+```md
+ 将本仓库fork到自己仓库
+
+ 在网页中取消第41行注释:
+ `  // "r2_buckets": [{ "binding": "BLOBS", "bucket_name": "1tmsg-blobs" }] `
+ `   "r2_buckets": [{ "binding": "BLOBS", "bucket_name": "1tmsg-blobs" }]   `
+ 并保存更新.
+
+ 进入[Cloudflare Workers](https://deploy.workers.cloudflare.com/)网页控制台,
+
+ 连接自己的github账号,选择fork的仓库进行部署,无需修改配置,直接部署即可.
+```
+
+#### 命令行部署:
 
 **① 克隆仓库,复制配置模板**
 
@@ -190,6 +210,8 @@ https://1tmsg.<你的账号>.workers.dev
 ```
 
 打开它就用上了。**这个地址就是你的服务主页**，把它分享给需要使用的人即可。
+
+建议到cf workers控制台中配置自定义域名，方便记忆和访问。
 
 ---
 
