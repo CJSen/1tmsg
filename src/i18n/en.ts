@@ -18,6 +18,7 @@ export const en: Record<MsgKey, string> = {
   'brand.tagline': 'Burn after reading · end-to-end encrypted',
   'lang.toEnglish': 'Switch to English',
   'lang.toChinese': '切换到中文',
+  'nav.github': 'View the source on GitHub',
 
   /* ---------------- 创建页 · 页头与说明 ---------------- */
 

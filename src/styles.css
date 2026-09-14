@@ -104,8 +104,11 @@ main { position: relative; z-index: 1 }
 .pill.warn { background: var(--warnS); color: var(--warn); border-color: var(--warnL) }
 .pill.n { background: var(--sf2); color: var(--i500); border-color: var(--line) }
 
-/* 顶栏右侧的组合：状态 pill + 语言切换 */
-.tr { display: inline-flex; align-items: center; gap: 8px }
+/* 顶栏右侧的组合：第一行「语言切换 + 仓库入口」，第二行状态 pill。
+   状态 pill 的说法是「补充说明」而不是「并列项」，因此压在操作行下方、右对齐，
+   窄屏仍按 .band 的既有规则隐藏。 */
+.tr { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 8px }
+.trr { display: inline-flex; align-items: center; gap: 8px }
 
 /* 语言切换：固定显示「中文 / EN」两个候选，当前语言高亮（.cur）、另一个置灰（.alt），
    点整颗按钮切换。创建页 / 已创建屏 / 查看页各有一颗，样式统一由 .lang 承载 */
@@ -122,6 +125,17 @@ main { position: relative; z-index: 1 }
 .lang .sep { color: var(--line2) }
 .lang:hover { border-color: var(--line2); background: var(--sf3) }
 .lang:hover .cur { color: var(--i900) }
+
+/* 仓库入口：紧挨语言切换右侧，做成与 .lang 等高（24px）的方形按钮。
+   按钮内没有可见文案，可读名由 aria-label / title 承载（见 HTML，走 i18n）。 */
+.gh {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; flex: none;
+  color: var(--i400); background: var(--sf2);
+  border: 1px solid var(--line); border-radius: var(--rp);
+  transition: color var(--t), border-color var(--t), background var(--t);
+}
+.gh:hover { color: var(--i900); border-color: var(--line2); background: var(--sf3) }
 
 /* ==========================================================================
    4. 卡片 / 表单
