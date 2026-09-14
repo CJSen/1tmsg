@@ -59,8 +59,19 @@ interface DecodedImage {
   bytes: Bytes;
 }
 
+/**
+ * 切换主视图。
+ *
+ * 三个 paint* 都带「对应视图可见才写」的守卫，所以**必须在切完视图之后再重绘**：
+ * 顺序写反时它们是静默失败的 —— 曾经因此出现「无密钥链接一直停在加载态」
+ * 与「剩余次数不显示」。这里把「切视图 → 重绘」绑成一步，调用方不必关心先后。
+ * （语言切换走 onLocaleChange 直接调 paint*，那时视图已可见，守卫正好放行。）
+ */
 function only(target: HTMLElement): void {
   for (const node of [stateLoading, stateFatal, stateUnlock, stateRead]) show(node, node === target);
+  if (target === stateLoading) paintLoading();
+  else if (target === stateFatal) paintFatal();
+  else if (target === stateRead) renderBadge();
 }
 
 /* ------------------------------------------------------------------ */
@@ -95,16 +106,16 @@ function paintLoading(): void {
 
 let lastFatal: { title: MsgKey; bodyKey?: MsgKey; bodyText?: string } | null = null;
 
-/** 失败页：标题与正文都是字典键 */
+/** 失败页：标题与正文都是字典键（切视图 + 绘制由 only 一并完成） */
 function fatalKey(title: MsgKey, body: MsgKey): void {
   lastFatal = { title, bodyKey: body };
-  paintFatal();
+  only(stateFatal);
 }
 
 /** 失败页：正文是现成文案（比如 api.ts 已经本地化的服务端 message），不进 data-i18n */
 function fatalText(title: MsgKey, body: string): void {
   lastFatal = { title, bodyText: body };
-  paintFatal();
+  only(stateFatal);
 }
 
 function paintFatal(): void {
@@ -428,8 +439,8 @@ function render(
   bindCopyButtons(payload);
 
   show(el('readDone'), destroyed);
+  // readState 必须先落地：紧随其后的 only(stateRead) 会立刻用它重绘徽标
   readState = { destroyed, remaining };
-  renderBadge();
 
   startCountdown(expiresAt);
   only(stateRead);
