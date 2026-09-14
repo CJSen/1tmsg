@@ -165,8 +165,10 @@ npm run deploy
 ```bash
 git clone https://github.com/<你的账号>/1tmsg.git
 cd 1tmsg
-cp wrangler.jsonc.example wrangler.jsonc
+cp wrangler.jsonc.example.r2 wrangler.me.jsonc
 ```
+
+> `wrangler.me.jsonc` 是个人配置,名字随意,但**必须以 `.jsonc` 结尾** —— wrangler 靠后缀判定格式,后缀不认识时会静默忽略整份配置。`wrangler.*.jsonc` 已在 `.gitignore` 里,不会产生 git 改动。
 
 **② 开通 R2 并建桶**
 
@@ -196,8 +198,10 @@ npx wrangler login
 **⑤ 部署**
 
 ```bash
-npm run deploy
+npm run deploy -- -c wrangler.me.jsonc
 ```
+
+> 不加 `-c` 就是 `npm run deploy`,用仓库自带的 `wrangler.jsonc`。加了 `-c`,**构建和部署会读同一份配置**(否则会出现「前端关掉图片、后端却带 R2」的不一致)。命令开头会打印本次生效的配置与开关,核对一眼即可。
 
 </details>
 
@@ -316,7 +320,14 @@ npm run typecheck    # TypeScript 类型检查
 npm run build        # 只构建前端资源
 ```
 
-`dev` / `build` / `deploy` 都会按当前 `wrangler.jsonc` 重建前端，所以本地看到的就是部署后的样子。想本地预览仅文字的版本，把配置换成仅文字的模板再启动即可：
+`dev` / `build` / `deploy` 都会按当前生效的配置重建前端，所以本地看到的就是部署后的样子。默认读 `wrangler.jsonc`；想让两条链路都改用别的配置，加一个 `-c` 即可（构建与部署读的是同一份，不会出现开关不一致）：
+
+```bash
+npm run dev -- -c wrangler.me.jsonc
+npm run deploy -- -c wrangler.me.jsonc
+```
+
+想本地预览仅文字的版本，把配置换成仅文字的模板再启动即可：
 
 ```bash
 cp wrangler.jsonc.example wrangler.jsonc && npm run dev

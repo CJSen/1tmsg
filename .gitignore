@@ -24,3 +24,9 @@ public/assets/
 # vars.DEFAULT_LOCALE 生成（见 npm run locale）。不入库 —— 想换默认语言改配置即可。
 src/i18n/active.ts
 
+# 个人部署配置（含自己的域名 / 桶名，随 npm run deploy -- -c wrangler.me.jsonc 使用）。
+# 注意不是 wrangler.jsonc 本身 —— 那个文件要留在仓库里，一键部署靠它 provision 资源。
+wrangler*.jsonc
+!wrangler.jsonc
+!wrangler.jsonc.example
+!wrangler.jsonc.example.r2

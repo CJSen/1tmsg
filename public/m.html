@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="color-scheme" content="light">
-<title data-i18n="meta.view.title">View a secret message · 1tmsg</title>
+<title data-i18n="meta.view.title">查看秘密消息 · 1tmsg</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/assets/styles.css">
 <script type="module" src="/assets/view.js"></script>
@@ -34,12 +34,12 @@
       <span class="mark"><svg class="ico"><use href="#i-flame"/></svg></span>
       <span>
         <b class="bn">1tmsg</b>
-        <span class="bs" data-i18n="brand.tagline">Burn after reading · end-to-end encrypted</span>
+        <span class="bs" data-i18n="brand.tagline">阅后即焚 · 端到端加密</span>
       </span>
     </div>
     <span class="tr">
-      <span class="pill n"><svg class="ico ico-13"><use href="#i-lock"/></svg><span data-i18n="view.badge">Decrypted in your browser only</span></span>
-      <button class="lang" type="button" aria-label="Switch to English" data-i18n-aria-label="lang.toEnglish"><span class="cur">中文</span><span class="sep" aria-hidden="true">/</span><span class="alt">EN</span></button>
+      <span class="pill n"><svg class="ico ico-13"><use href="#i-lock"/></svg><span data-i18n="view.badge">密文仅在本地解密</span></span>
+      <button class="lang" type="button" aria-label="切换到英文" data-i18n-aria-label="lang.toEnglish"><span class="cur">中文</span><span class="sep" aria-hidden="true">/</span><span class="alt">EN</span></button>
     </span>
   </div>
 
@@ -48,8 +48,8 @@
     <div class="card-bd lg">
       <div class="center">
         <div class="spin" role="presentation"></div>
-        <h1 class="h1" id="loadingTitle" data-i18n="view.loadingTitle">Preparing to decrypt</h1>
-        <p class="sub center-block" id="loadingBody" data-i18n="view.loadingBody">Reading the key from the link and asking the server about this message.</p>
+        <h1 class="h1" id="loadingTitle" data-i18n="view.loadingTitle">正在准备解密</h1>
+        <p class="sub center-block" id="loadingBody" data-i18n="view.loadingBody">读取链接里的密钥，并向服务器确认这条消息的状态。</p>
       </div>
     </div>
   </section>
@@ -59,14 +59,14 @@
     <div class="card-bd lg">
       <div class="center">
         <div class="fatalico"><svg class="ico"><use href="#i-alert"/></svg></div>
-        <h1 class="h1" id="fatalTitle" data-i18n="view.fatalTitle">This message cannot be opened</h1>
+        <h1 class="h1" id="fatalTitle" data-i18n="view.fatalTitle">无法打开这条消息</h1>
         <p class="sub center-block" id="fatalBody"></p>
       </div>
       <div class="notice info mt18">
         <svg class="ico"><use href="#i-shield"/></svg>
-        <span><span data-i18n="view.fatalNote1">The decryption key exists only after the</span> <b>#</b> <span data-i18n="view.fatalNote2">in the original link. The server has never seen it, so it cannot recover a truncated link for you.</span></span>
+        <span><span data-i18n="view.fatalNote1">解密密钥只存在于原始链接的</span> <b>#</b> <span data-i18n="view.fatalNote2">之后。服务器从未见过它，因此也无法帮你恢复被截断的链接。</span></span>
       </div>
-      <a class="btn out block mt18" href="/" data-i18n="view.createNew">Create a new message</a>
+      <a class="btn out block mt18" href="/" data-i18n="view.createNew">创建一条新消息</a>
     </div>
   </section>
 
@@ -75,35 +75,35 @@
     <div class="card-bd lg">
       <div class="center">
         <div class="lockico"><svg class="ico"><use href="#i-lock"/></svg></div>
-        <h1 class="h1" data-i18n="view.unlockTitle">This message is password protected</h1>
-        <p class="sub center-block" data-i18n="view.unlockSub">Enter the password the sender gave you. It is never sent to the server — verification and decryption both happen in your browser.</p>
+        <h1 class="h1" data-i18n="view.unlockTitle">这条消息受密码保护</h1>
+        <p class="sub center-block" data-i18n="view.unlockSub">输入发送者给你的密码。密码不会发送到服务器，验证与解密都在你的浏览器里完成。</p>
       </div>
 
       <div class="mt22">
         <div class="field-hd">
-          <span class="lbl" data-i18n="view.pwLabel">Password</span>
-          <span class="cnt" data-i18n="view.pwSide">Only a successful decryption counts as a view</span>
+          <span class="lbl" data-i18n="view.pwLabel">密码</span>
+          <span class="cnt" data-i18n="view.pwSide">解密成功后才会计入查看次数</span>
         </div>
         <div class="wrap">
-          <input class="in" id="pwd2" type="password" placeholder="Enter password" autocomplete="off" data-i18n-placeholder="view.pwPh">
-          <button class="eye" type="button" id="eye2" aria-label="Show password" data-i18n-aria-label="create.pwShow"><svg class="ico"><use href="#i-eye"/></svg></button>
+          <input class="in" id="pwd2" type="password" placeholder="输入密码" autocomplete="off" data-i18n-placeholder="view.pwPh">
+          <button class="eye" type="button" id="eye2" aria-label="显示密码" data-i18n-aria-label="create.pwShow"><svg class="ico"><use href="#i-eye"/></svg></button>
         </div>
       </div>
 
       <p class="notice dan mt14" id="unlockError" hidden></p>
 
       <button class="btn pri lg block mt14" type="button" id="unlockBtn">
-        <svg class="ico"><use href="#i-lock"/></svg><span data-i18n="view.unlockBtn">Decrypt and view</span>
+        <svg class="ico"><use href="#i-lock"/></svg><span data-i18n="view.unlockBtn">解密并查看</span>
       </button>
 
       <div class="notice warn mt14">
         <svg class="ico"><use href="#i-alert"/></svg>
-        <span><span data-i18n="view.unlockWarn1">A wrong password does not use up a view — </span><b data-i18n="view.unlockWarn2">only a successful decryption counts</b><span data-i18n="view.unlockWarn3">.</span></span>
+        <span><span data-i18n="view.unlockWarn1">密码错误不会消耗查看次数；</span><b data-i18n="view.unlockWarn2">只有解密成功那一次才算</b><span data-i18n="view.unlockWarn3">。</span></span>
       </div>
 
       <p class="micro mt14">
         <svg class="ico ico-13"><use href="#i-shield"/></svg>
-        <span data-i18n="view.unlockMicro">PBKDF2 → HKDF → AES-256-GCM, all local</span>
+        <span data-i18n="view.unlockMicro">PBKDF2 → HKDF → AES-256-GCM，全程本地执行</span>
       </p>
     </div>
   </section>
@@ -114,8 +114,8 @@
       <span class="pill b"><svg class="ico ico-13"><use href="#i-lock"/></svg><span id="readBadgeText">已在本地解密</span></span>
       <span class="rgroup">
         <span class="cnt"><svg class="ico ico-13"><use href="#i-clock"/></svg><span id="readExpiry"></span></span>
-        <button class="cpbtn" type="button" id="copyTop" aria-label="Copy all content" data-i18n-aria-label="view.copyAria">
-          <svg class="ico ico-13"><use href="#i-copy"/></svg><span data-i18n="view.copy">Copy</span>
+        <button class="cpbtn" type="button" id="copyTop" aria-label="复制全部内容" data-i18n-aria-label="view.copyAria">
+          <svg class="ico ico-13"><use href="#i-copy"/></svg><span data-i18n="view.copy">复制</span>
         </button>
       </span>
     </div>
@@ -127,23 +127,23 @@
       </div>
       <div class="md" id="readBody"></div>
       <button class="btn out block" type="button" id="copyBottom">
-        <svg class="ico"><use href="#i-copy"/></svg><span data-i18n="view.copyAll">Copy everything</span>
+        <svg class="ico"><use href="#i-copy"/></svg><span data-i18n="view.copyAll">复制全部内容</span>
       </button>
     </div>
 
     <div class="rdone" id="readDone" hidden>
       <svg class="ico"><use href="#i-trash"/></svg>
-      <span><span data-i18n="view.readDone1">This was a burn-after-reading message — the ciphertext on the server </span><b data-i18n="view.readDone2">has already been deleted</b><span data-i18n="view.readDone3">. Do not close or reload this page, or the content cannot be opened again.</span></span>
+      <span><span data-i18n="view.readDone1">这是一条阅后即焚消息，服务器上的密文</span><b data-i18n="view.readDone2">已经删除</b><span data-i18n="view.readDone3">。请不要关闭或刷新页面，否则内容无法再次打开。</span></span>
     </div>
 
     <div class="cta">
-      <p class="ctat" data-i18n="view.ctaTitle">Want to send one safely too?</p>
+      <p class="ctat" data-i18n="view.ctaTitle">也想安全地发一条？</p>
       <a class="btn pri block" href="/">
-        <svg class="ico"><use href="#i-flame"/></svg><span data-i18n="view.ctaBtn">Create my own</span>
+        <svg class="ico"><use href="#i-flame"/></svg><span data-i18n="view.ctaBtn">我也要创建一条</span>
       </a>
       <p class="micro">
         <svg class="ico ico-13"><use href="#i-shield"/></svg>
-        <span data-i18n="view.ctaMicro">No sign-up · encrypted in the browser · destroyed once opened</span>
+        <span data-i18n="view.ctaMicro">无需注册 · 内容只在浏览器加解密 · 打开一次即销毁</span>
       </p>
     </div>
   </section>

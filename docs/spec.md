@@ -1154,6 +1154,39 @@ R2 开通时必须绑定支付方式，不是每个部署者都愿意。所以�
 > 代价：不再支持用环境变量临时切换版本。想换版本就换模板（或增删那一行绑定），
 > 换来的是「配置里看到什么，跑起来就是什么」。
 
+### 选哪份配置：一条 `-c` 管两条链路
+
+默认读 `wrangler.jsonc`；想用别的文件（比如不进库的个人配置 `wrangler.me.jsonc`）：
+
+```bash
+npm run deploy -- -c wrangler.me.jsonc
+npm run dev    -- -c wrangler.me.jsonc
+```
+
+这里有个坑值得写下来：**`npm run x -- <参数>` 的参数只会被 npm 追加到脚本命令末尾**。
+原来的 `deploy` 是复合脚本 `npm run build && wrangler deploy`，参数只落在 wrangler 上，
+链首的 build 收不到 —— 于是 build 读 `wrangler.jsonc`、deploy 读 `-c` 指定的文件，
+出现「前端关掉图片入口、后端却带 `env.BLOBS`」的漂移，正是本节想消灭的那种漂移。
+
+所以部署入口改成了一层脚本 `scripts/run.mjs`：它在链首接住 `-c`，写成环境变量
+`WRANGLER_CONFIG` 喂给 `scripts/feature-flag.mjs`，再把同一个路径用 `-c` 传给 wrangler，
+两条链路必然同源。日志首行会把结果打出来，漂移一眼可见：
+
+```text
+[run] 配置：wrangler.me.jsonc｜图片：启用｜默认语言：zh
+```
+
+硬约束：
+
+- **配置文件后缀必须是 `.jsonc` / `.json` / `.toml`。** wrangler 靠后缀判定格式，
+  后缀不认识时**静默忽略整份配置**（不报错，表现为交互式追问项目名、最后报
+  `Missing entry-point`）。`scripts/run.mjs` 会提前拦掉这种情况。
+- **`wrangler.jsonc` 必须留在 git 里。** Deploy to Cloudflare 按钮会读仓库中的
+  wrangler 配置来 provision 资源（R2 桶 / DO 命名空间）并可能回写资源 ID；
+  个人配置只能作为额外文件存在（且应进 `.gitignore`）。
+- 不带 `-c` 时行为与 `npm run build && wrangler deploy` 完全一致 —— 一键部署会
+  不带参数地取 `package.json` 里的 `deploy` 脚本执行。
+
 ### 前端为什么写成全局标识符
 
 `__ENABLE_IMAGES__` 由 esbuild `define` 直接替换成字面量。写法上有三条硬约束，

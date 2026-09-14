@@ -140,7 +140,8 @@ npm run deploy
 #### One-click deploy
 > One-click deploy not yet supported. It's recommended to fork to your own repo, then link your repo manually on [Cloudflare Workers](https://deploy.workers.cloudflare.com/) to deploy, so you can sync upstream code and update immediately.
 ```bash
-cp wrangler.jsonc.example wrangler.jsonc
+# the repo-linked flow reads the tracked wrangler.jsonc, so the r2_buckets block must be in it:
+cp wrangler.jsonc.example.r2 wrangler.jsonc
 ```
 > ⚠️ Image version: the button auto-creates the R2 bucket, but **your account must have R2 enabled (payment method bound)** first, otherwise the bucket-creation step fails. The text-only version has zero barriers.
 
@@ -151,8 +152,10 @@ cp wrangler.jsonc.example wrangler.jsonc
 ```bash
 git clone https://github.com/<your-account>/1tmsg.git
 cd 1tmsg
-cp wrangler.jsonc.example wrangler.jsonc
+cp wrangler.jsonc.example.r2 wrangler.me.jsonc
 ```
+
+> `wrangler.me.jsonc` is your personal config — the name is up to you, but it **must end with `.jsonc`**: wrangler decides the format by file extension, and it *silently ignores* the whole config when the extension is unrecognized. `wrangler.*.jsonc` is already in `.gitignore`, so it never shows up as a git change.
 
 **② Enable R2 and create a bucket**
 
@@ -182,8 +185,10 @@ Opens the browser automatically; click **Allow** to authorize.
 **⑤ Deploy**
 
 ```bash
-npm run deploy
+npm run deploy -- -c wrangler.me.jsonc
 ```
+
+> Without `-c` it's just `npm run deploy`, using the repo's `wrangler.jsonc`. With `-c`, **the build and the deploy read the same file** (otherwise you get "frontend without images, Worker with R2" — an inconsistent state). The first lines of output print the config in effect and its switches.
 
 </details>
 
@@ -302,7 +307,14 @@ npm run typecheck    # TypeScript type check
 npm run build        # only build frontend assets
 ```
 
-`dev` / `build` / `deploy` rebuild the frontend based on the current `wrangler.jsonc`, so what you see locally is what gets deployed. To preview the text-only version locally, swap the config to the text-only template and start:
+`dev` / `build` / `deploy` rebuild the frontend based on the effective config, so what you see locally is what gets deployed. The default is `wrangler.jsonc`; add a `-c` to make **both** the build and the deploy use another file (both links read the same file, so the image switch can never drift apart):
+
+```bash
+npm run dev -- -c wrangler.me.jsonc
+npm run deploy -- -c wrangler.me.jsonc
+```
+
+To preview the text-only version locally, swap the config to the text-only template and start:
 
 ```bash
 cp wrangler.jsonc.example wrangler.jsonc && npm run dev

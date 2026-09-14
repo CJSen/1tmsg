@@ -6,8 +6,8 @@
   "description": "阅后即焚秘密消息服务 · 端到端加密 · Cloudflare Workers + Durable Objects",
   "scripts": {
     "build": "node scripts/build-client.mjs && node scripts/build-html.mjs",
-    "dev": "npm run build && wrangler dev --ip 0.0.0.0 --port 8787",
-    "deploy": "npm run build && wrangler deploy",
+    "dev": "node scripts/run.mjs --dev",
+    "deploy": "node scripts/run.mjs",
     "locale": "node scripts/sync-locale.mjs",
     "typecheck": "node scripts/sync-locale.mjs && tsc -p tsconfig.json --noEmit && tsc -p tsconfig.client.json --noEmit"
   },
