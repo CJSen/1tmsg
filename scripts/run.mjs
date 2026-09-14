@@ -109,13 +109,14 @@ if (!SUPPORTED_EXT.includes(ext)) {
 if (!existsSync(configPath) && !isDefault) {
   die(
     `找不到指定的配置文件：${configName}\n` +
-      `      从模板复制一份即可：cp wrangler.jsonc.example.r2 ${configName}`,
+      `      仓库自带的是 wrangler.jsonc（仅文字）与 wrangler.images.jsonc（图片版）；\n` +
+      `      要用图片版：npm run deploy -- -c wrangler.images.jsonc`,
   );
 }
 
 /*
  * 构建脚本按这个环境变量找配置。必须在 build 之前设好 —— 它是两条链路唯一的耦合点。
- * （默认文件缺失时不拦：feature-flag.mjs 会从模板自动生成一份。）
+ * （默认文件缺失时不在这里拦：feature-flag.mjs 会给出恢复提示。）
  */
 process.env.WRANGLER_CONFIG = configPath;
 

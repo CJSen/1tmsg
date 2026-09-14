@@ -17,7 +17,7 @@
  *   图片密文（每张一个对象）            → R2，键 `msg/<id>/<aid>`
  * 两者都用 AES-GCM，但**密钥不同**（图片密钥由 K_msg 经 HKDF 域分隔派生）。
  *
- * 图片功能整体可关：部署配置里不声明 r2_buckets 即可（见 wrangler.jsonc.example）。
+ * 图片功能整体可关：部署配置里不声明 r2_buckets 即可（见 wrangler.jsonc 与 wrangler.images.jsonc）。
  * 此时 env.BLOBS 为 undefined —— /att 两条路由 404，创建接口拒绝带附件的请求。
  * 「绑定是否存在」是唯一判据，前端构建期也看同一处，两边不会漂移。
  *

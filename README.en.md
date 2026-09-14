@@ -54,23 +54,23 @@ Simply put: **What you type in the box, even Cloudflare cannot see.**
 
 ## Pick a version first: do you need image support
 
-**This is the only decision point in the entire deployment: which template you pick is which version you get.**
+**This is the only decision point in the entire deployment: which config file you deploy with is which version you get — both ship with the repo, nothing to copy.**
 
 | | Text only (default) | With images |
 |---|---|---|
-| Template file | `wrangler.jsonc.example` | `wrangler.jsonc.example.r2` |
+| Config file | `wrangler.jsonc` | `wrangler.images.jsonc` |
 | What you can send | Text, Markdown | Text, Markdown, **images** (single ≤ 100 MB) |
 | R2 required | No | Yes —— R2 requires a payment method to enable |
 
-The two templates differ only by one `r2_buckets` declaration — **having this block means the image-capable version.**
+The two configs differ only by one `r2_buckets` declaration: commented out in `wrangler.jsonc`, active in `wrangler.images.jsonc` — **having this block means the image-capable version.**
 
-Image ciphertext is stored in Cloudflare R2 object storage, and enabling R2 requires binding a payment method. Many people don't want to bind a card, so **the default uses the text-only one, never touching R2 throughout the entire process.**
+Image ciphertext is stored in Cloudflare R2 object storage, and enabling R2 requires binding a payment method. Many people don't want to bind a card, so **the default is the text-only one (`wrangler.jsonc`), never touching R2 throughout the entire process.**
 
 "Whether `r2_buckets` is in the config" simultaneously determines three things — whether the R2 binding is declared, whether the frontend builds an image entry, and whether the server accepts image attachment requests — so there's no mismatch of "button in the UI but backend rejects it."
 
 ---
 
-## CLI deploy / one-click deploy: about 5 minutes
+## One-click / web / CLI deploy: about 5 minutes
 
 ### Preparation
 
@@ -82,7 +82,17 @@ Image ciphertext is stored in Cloudflare R2 object storage, and enabling R2 requ
 
 ### Step 1 · Pick a version and deploy (choose one of two tabs)
 
-The two tabs below are each a **complete path**; pick one and follow it through. **"Text only" is expanded by default**; switch to the "With images" tab if you want to send images — it adds two extra steps (enabling R2 and creating a bucket). See "Pick a version" above for the difference.
+The two tabs below are each a **complete path**; pick one, expand it, and follow it through. Switch to the "With images" tab if you want to send images — it adds two extra steps (enabling R2 and creating a bucket). See "Pick a version" above for the difference.
+
+> **💡 Tip · one repo, many configs**
+>
+> Create a `wrangler.<your-name>.jsonc` in your fork and point the deploy at it with `-c`, and you can **deploy the same code as several differently-configured Workers** — only the file name changes, everything else stays put: `npm run deploy -- -c wrangler.test.jsonc`
+>
+> The file name **must end with `.jsonc`** — wrangler picks the format by extension and silently ignores the whole config otherwise (`npm run deploy` catches this at build time and tells you to rename).
+>
+> Such files never enter version control (`.gitignore` covers `wrangler*.jsonc`, with only `wrangler.jsonc` and `wrangler.images.jsonc` excepted), so they're **immune to Git**: `git pull` from upstream never conflicts, and your domain and bucket name stay local.
+>
+> Commonly used to change: custom domain, Worker name, R2 bucket name, the image switch.
 
 <details>
 <summary>🟦 Text only (default)</summary>
@@ -94,22 +104,25 @@ The two tabs below are each a **complete path**; pick one and follow it through.
 
 #### Web deploy:
 
-```md
- Fork this repo to your own repo.
+Fork this repo to your own GitHub account.
 
- Go to the [Cloudflare Workers](https://deploy.workers.cloudflare.com/) web console,
+Go to the [Cloudflare Workers](https://deploy.workers.cloudflare.com/) web console,
 
- connect your GitHub account, select the forked repo to deploy — no config changes needed, just deploy directly.
-```
+connect your GitHub account and select the forked repo: the deploy command is `npx wrangler deploy`,
+
+change it to: `npm run deploy`, leave everything else as is.
+
+ <img src="docs/static/cf-workers.png" width="300" alt="Config page">
+
+Click deploy and wait a moment for it to go live.
 
 #### CLI deploy:
 
-**① Clone the repo, copy the config template (customize if needed)**
+**① Clone the repo (the config ships with it — no copying needed; edit `wrangler.jsonc` directly if you want changes)**
 
 ```bash
 git clone https://github.com/<your-account>/1tmsg.git
 cd 1tmsg
-cp wrangler.jsonc.example wrangler.jsonc
 ```
 
 **② Install dependencies**
@@ -138,24 +151,32 @@ npm run deploy
 <summary>🟨 With images (needs R2, needs card binding)</summary>
 
 #### One-click deploy
-> One-click deploy not yet supported. It's recommended to fork to your own repo, then link your repo manually on [Cloudflare Workers](https://deploy.workers.cloudflare.com/) to deploy, so you can sync upstream code and update immediately.
-```bash
-# the repo-linked flow reads the tracked wrangler.jsonc, so the r2_buckets block must be in it:
-cp wrangler.jsonc.example.r2 wrangler.jsonc
-```
+> Not supported for this version — use the web deploy or CLI deploy instead, and enable R2 + create the bucket beforehand, or the deploy will fail.
+
 > ⚠️ Image version: the button auto-creates the R2 bucket, but **your account must have R2 enabled (payment method bound)** first, otherwise the bucket-creation step fails. The text-only version has zero barriers.
+
+#### Web deploy:
+
+Fork this repo to your own GitHub account.
+
+Go to the [Cloudflare Workers](https://deploy.workers.cloudflare.com/) web console,
+
+connect your GitHub account and select the forked repo: the deploy command is `npx wrangler deploy`,
+
+change it to: `npm run deploy -- -c wrangler.images.jsonc`, leave everything else as is.
+
+ <img src="docs/static/cf-workers-images.png" width="300" alt="Config page">
+
+Click deploy and wait a moment for it to go live.
 
 #### CLI deploy:
 
-**① Clone the repo, copy the config template**
+**① Clone the repo (the image config ships with the repo: `wrangler.images.jsonc` — no copying needed)**
 
 ```bash
 git clone https://github.com/<your-account>/1tmsg.git
 cd 1tmsg
-cp wrangler.jsonc.example.r2 wrangler.me.jsonc
 ```
-
-> `wrangler.me.jsonc` is your personal config — the name is up to you, but it **must end with `.jsonc`**: wrangler decides the format by file extension, and it *silently ignores* the whole config when the extension is unrecognized. `wrangler.*.jsonc` is already in `.gitignore`, so it never shows up as a git change.
 
 **② Enable R2 and create a bucket**
 
@@ -185,7 +206,7 @@ Opens the browser automatically; click **Allow** to authorize.
 **⑤ Deploy**
 
 ```bash
-npm run deploy -- -c wrangler.me.jsonc
+npm run deploy -- -c wrangler.images.jsonc
 ```
 
 > Without `-c` it's just `npm run deploy`, using the repo's `wrangler.jsonc`. With `-c`, **the build and the deploy read the same file** (otherwise you get "frontend without images, Worker with R2" — an inconsistent state). The first lines of output print the config in effect and its switches.
@@ -211,14 +232,14 @@ It's recommended to configure a custom domain in the cf workers console for easi
 | What you want to do | How |
 |---|---|
 | **Switch site default language** | Edit `vars.DEFAULT_LOCALE` in `wrangler.jsonc` (`"zh"` / `"en"`, default `zh`), then `npm run deploy` again. The UI is bilingual (Chinese/English); **no automatic browser-language following** — the site language is this value, and visitors can manually switch via the `EN / 中文` button in the top-right (the choice is remembered) |
-| **Enable / disable image support** | Add / remove the `r2_buckets` block in `wrangler.jsonc` (enable R2 and create a bucket first before adding), then `npm run deploy`; you can also just swap the template copy |
+| **Enable / disable image support** | Add / remove the `r2_buckets` block in `wrangler.jsonc` (enable R2 and create a bucket first before adding), then `npm run deploy`; or just deploy the other config: `npm run deploy -- -c wrangler.images.jsonc` |
 | **Use your own domain** | Edit `wrangler.jsonc`, uncomment the `routes` line and replace it with your domain, then `npm run deploy`. The domain must be hosted on Cloudflare; certificate and DNS records are created automatically — **do not** manually add A/CNAME |
 | **Change Worker name** | Change `name` in `wrangler.jsonc`. If image support is on, the bucket name in the create command must also stay consistent (or create a different bucket name and sync `bucket_name`) |
 | **Disable workers.dev fallback address** | Remove the `workers_dev` line from `wrangler.jsonc`, keeping only the custom domain |
 | **Adjust per-message / per-image limits** | Edit the `vars` in `wrangler.jsonc` (`MAX_MESSAGE_BYTES`, `MAX_ATTACHMENT_BYTES`, `RATE_LIMIT_MAX_CREATES`) then redeploy. The latter two only matter in the image version |
-| **Update version** | `git pull && npm run deploy` to overwrite-upgrade. Local changes like toggles and domains stay in `wrangler.jsonc` and are unaffected |
+| **Update version** | `git pull && npm run deploy` to overwrite-upgrade. **Keep your own domain, bucket name and switches in a separate config file** (e.g. `wrangler.me.jsonc`, see the tip above) and point `-c` at it — editing `wrangler.jsonc` directly gets overwritten or conflicts on `git pull` |
 
-`wrangler.jsonc` is in `.gitignore` (it carries your real domain and bucket name), so changes stay local.
+`wrangler.jsonc` (text only) and `wrangler.images.jsonc` (with images) both **ship with the repo and stay tracked** — one-click deploy relies on them to provision resources. Keep configs that carry your real domain or bucket name in a separate file (e.g. `wrangler.me.jsonc`): `.gitignore` already covers `wrangler*.jsonc`, so those changes stay local.
 
 ---
 
@@ -245,7 +266,7 @@ It's recommended to configure a custom domain in the cf workers console for easi
 | Access password | ≥ 6 chars, 10 consecutive wrong attempts destroys the message |
 | Creation rate | 30 messages / IP / minute |
 
-> ※ Only present in the image version (`wrangler.jsonc.example.r2`); the text-only version doesn't use these.
+> ※ Only present in the image version (`wrangler.images.jsonc`); the text-only version (`wrangler.jsonc`) doesn't use these.
 
 ---
 
@@ -280,10 +301,10 @@ Mostly a network issue. Try enabling a proxy and retry, or switch to API Token l
 Yes, and that's the default path — the text-only version needs no R2 throughout, so no payment method binding. Follow the three steps `npm install && npx wrangler login && npm run deploy`.
 
 **Q: Deployment asks to enable R2, requiring card binding?**
-It means `wrangler.jsonc` declares `r2_buckets` (i.e., you used the image template). Don't want to bind a card? Switch to text-only: remove that `r2_buckets` block, or re-run `cp wrangler.jsonc.example wrangler.jsonc`, then `npm run deploy`.
+It means the config in use declares `r2_buckets` (i.e., you took the image-capable path). Don't want to bind a card? Go back to the text-only one: remove that `r2_buckets` block, or deploy without `-c` (`npm run deploy` defaults to `wrangler.jsonc`), then run it once more.
 
 **Q: Deployed text-only first, want to add images later?**
-Complete R2 enabling and bucket creation as above, copy the `r2_buckets` block from `wrangler.jsonc.example.r2` into `wrangler.jsonc` (or just overwrite with this template), then `npm run deploy`. Going the other way (from image back to text-only) means **previously sent image messages will have broken images** — the body and note remain viewable, but the image shows a missing placeholder.
+Complete R2 enabling and bucket creation as above, copy the `r2_buckets` block from `wrangler.images.jsonc` into `wrangler.jsonc`, or just deploy the image version: `npm run deploy -- -c wrangler.images.jsonc`. Going the other way (from image back to text-only) means **previously sent image messages will have broken images** — the body and note remain viewable, but the image shows a missing placeholder.
 
 **Q: Deploy error says bucket not found?**
 The bucket name at creation differs from `bucket_name` in `wrangler.jsonc`. Change both to the same name (default `1tmsg-blobs`).
@@ -314,10 +335,11 @@ npm run dev -- -c wrangler.me.jsonc
 npm run deploy -- -c wrangler.me.jsonc
 ```
 
-To preview the text-only version locally, swap the config to the text-only template and start:
+The text-only config is the default; to preview the image version locally, point `-c` at it:
 
 ```bash
-cp wrangler.jsonc.example wrangler.jsonc && npm run dev
+npm run dev                              # text only (wrangler.jsonc)
+npm run dev -- -c wrangler.images.jsonc  # with images
 ```
 
 Local debug uses wrangler's local mock storage, **having `r2_buckets` doesn't require actually enabling R2**, no card binding involved.

@@ -3,21 +3,21 @@
  *
  *   1. 这次部署带不带图片功能 —— 判据只有一条：配置里有没有 r2_buckets。
  *      它与运行时的 env.BLOBS 同源，所以不存在第二个开关可以与之漂移。
- *      想切换版本就换一份模板（wrangler.jsonc.example / .example.r2）。
+ *      想切换版本就换一份配置（wrangler.jsonc 仅文字 / wrangler.images.jsonc 带图片）。
  *   2. 默认语言是什么 —— 判据是 vars.DEFAULT_LOCALE（缺省 zh）。
  *      构建期据此生成 src/i18n/active.ts，页面渲染也读同一处。
  *
  * 读的是哪份配置：默认 wrangler.jsonc，可由 WRANGLER_CONFIG 覆盖（见下方 configPath）。
- * 顺带负责：默认配置缺失时从模板（不带图片）生成一份。
+ * 两份配置都随仓库入库，所以不再做「缺失时自动生成」—— 缺了就是仓库不完整，直接报错。
  */
-import { copyFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DEFAULT_CONFIG = 'wrangler.jsonc';
-const PLAIN_TEMPLATE = resolve(root, 'wrangler.jsonc.example');
-const R2_TEMPLATE = resolve(root, 'wrangler.jsonc.example.r2');
+/** 仓库自带的图片版配置，只在报错信息里用来指路 */
+const IMAGES_CONFIG = 'wrangler.images.jsonc';
 
 /**
  * 本次构建该读哪份部署配置：默认 wrangler.jsonc，可由环境变量 WRANGLER_CONFIG 覆盖。
@@ -81,20 +81,20 @@ function stripJsonc(text) {
 /** JSONC 允许尾随逗号，JSON.parse 不允许 */
 const stripTrailingCommas = (text) => text.replace(/,(\s*[}\]])/g, '$1');
 
-/** 读取部署配置；用默认文件名且文件缺失时，从默认模板生成一份 */
+/** 读取部署配置；默认文件缺失时给出恢复办法（两份配置都入库，正常不会缺） */
 function loadConfig() {
   const path = configPath();
   const name = basename(path);
 
   if (!existsSync(path)) {
-    // 只有「默认文件缺失」才自动生成；用户显式指定的文件不存在时直接报错，
-    // 免得悄悄用另一份配置构建出与预期不符的产物
+    // 用户显式指定的文件不存在时直接报错，免得悄悄用另一份配置构建出与预期不符的产物
     if (path !== resolve(root, DEFAULT_CONFIG)) {
-      throw new Error(`指定的配置文件不存在：${name}`);
+      throw new Error(`指定的配置文件不存在：${name}（仓库自带 ${DEFAULT_CONFIG} 与 ${IMAGES_CONFIG}）`);
     }
-    copyFileSync(PLAIN_TEMPLATE, path);
-    console.log(`[config] 已生成 ${name} —— 不带图片的版本`);
-    console.log(`[config] 想发图片：cp ${basename(R2_TEMPLATE)} ${name}（需先开通 R2）`);
+    throw new Error(
+      `找不到 ${DEFAULT_CONFIG} —— 它随仓库提供，请先恢复（git checkout ${DEFAULT_CONFIG}），` +
+        `或改用图片版：npm run deploy -- -c ${IMAGES_CONFIG}`,
+    );
   }
 
   try {

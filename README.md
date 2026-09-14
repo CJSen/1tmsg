@@ -54,17 +54,17 @@
 
 ## 先选版本：要不要图片功能
 
-**这是整个部署里唯一需要先做决策的地方：选哪份模板，就是选哪个版本。**
+**这是整个部署里唯一需要先做决策的地方：用哪份配置文件，就是哪个版本 —— 两份都在仓库里，不需要自己复制。**
 
 | | 仅文字（默认） | 支持图片 |
 |---|---|---|
-| 模板文件 | `wrangler.jsonc.example` | `wrangler.jsonc.example.r2` |
+| 配置文件 | `wrangler.jsonc` | `wrangler.images.jsonc` |
 | 能发什么 | 文字、Markdown | 文字、Markdown、**图片**（单张 ≤ 100 MB） |
 | 要开通 R2 | 不需要 | 需要 —— R2 开通时要求绑定支付方式 |
 
-两份模板只差一段 `r2_buckets` 声明 —— **有这段就是支持图片的版本**。
+两份配置只差一段 `r2_buckets`：在 `wrangler.jsonc` 里它是注释掉的，在 `wrangler.images.jsonc` 里是生效的 —— **有这段就是支持图片的版本**。
 
-图片密文存在 Cloudflare R2 对象存储里，而 R2 开通时必须绑支付方式。不想绑卡的人不少，所以**默认用的是仅文字的那份，整个流程一次都不会碰 R2**。
+图片密文存在 Cloudflare R2 对象存储里，而 R2 开通时必须绑支付方式。不想绑卡的人不少，所以**默认走的是仅文字的那份（`wrangler.jsonc`），整个流程一次都不会碰 R2**。
 
 「配置里有没有 `r2_buckets`」同时决定三件事 —— 是否声明 R2 绑定、前端是否构建出图片入口、服务端是否接受图片附件的请求 —— 所以不会出现「界面上有按钮、后端却不认」的错配。
 
@@ -82,7 +82,19 @@
 
 ### 第 1 步 · 选版本并部署（两个 tab 二选一）
 
-下面两个 tab 各是一条**完整路径**，按需挑一个照着走完即可。**默认展开「仅文字」**；想发图片就切到「支持图片」tab，它会多出开通 R2、建桶两步。两个版本的差异见上方「先选版本」。
+下面两个 tab 各是一条**完整路径**，按需挑一个展开照着走完即可。想发图片就切到「支持图片」tab，它会多出开通 R2、建桶两步。两个版本的差异见上方「先选版本」。
+
+> **💡 小技巧 · 一个仓库，多套配置**
+>
+> 在 fork 的仓库里新建一份 `wrangler.<自定义>.jsonc`，部署时用 `-c` 指定它，就能把**同一份代码按不同配置部署成多个 Worker**
+>
+> —— 网页/命令行里的"部署命令"只换文件名，其余不动：`npm run deploy -- -c wrangler.test.jsonc`
+>
+> 这类文件默认不进版本库（`.gitignore` 里的 `wrangler*.jsonc` 已覆盖，仅 `wrangler.jsonc`、`wrangler.images.jsonc` 例外），所以**不受 Git 版本管理影响**：`git pull` 更新上游代码时不会冲突，自己的域名、桶名也只留在本地。
+>
+> 名字必须以 `.jsonc` 结尾 —— wrangler 按扩展名判断格式，不认的后缀会**整份忽略**（走 `npm run deploy` 时会在构建期被拦下并提示改名）。
+>
+> 常用来改：自定义域名、Worker 名字、R2 桶名、图片功能开关。
 
 <details>
 <summary>🟦 仅文字（默认）</summary>
@@ -95,22 +107,25 @@
 
 #### 网页部署:
 
-```md
- 将本仓库fork到自己仓库
+ 将本仓库fork到自己github账号,
 
  进入[Cloudflare Workers](https://deploy.workers.cloudflare.com/)网页控制台,
 
- 连接自己的github账号,选择fork的仓库进行部署,无需修改配置,直接部署即可.
-```
+ 连接自己的github账号,选择fork的仓库: 部署命令  `npx wrangler deploy` ,
+
+ 修改为: `npm run deploy` ,其他不动
+
+ <img src="docs/static/cf-workers.png" width="300" alt="配置页">
+
+ 点击部署,等待一会即可上线.
 
 #### 命令行部署:
 
-**① 克隆仓库,复制配置模板(如有需要可自定义修改)**
+**① 克隆仓库(配置已随仓库提供,无需复制;要改就直接改 `wrangler.jsonc`)**
 
 ```bash
 git clone https://github.com/<你的账号>/1tmsg.git
 cd 1tmsg
-cp wrangler.jsonc.example wrangler.jsonc
 ```
 
 **② 安装依赖**
@@ -145,30 +160,26 @@ npm run deploy
 
 #### 网页部署:
 
-```md
- 将本仓库fork到自己仓库
-
- 在网页中取消第41行注释:
- `  // "r2_buckets": [{ "binding": "BLOBS", "bucket_name": "1tmsg-blobs" }] `
- `   "r2_buckets": [{ "binding": "BLOBS", "bucket_name": "1tmsg-blobs" }]   `
- 并保存更新.
+ 将本仓库fork到自己github账号,
 
  进入[Cloudflare Workers](https://deploy.workers.cloudflare.com/)网页控制台,
 
- 连接自己的github账号,选择fork的仓库进行部署,无需修改配置,直接部署即可.
-```
+ 连接自己的github账号,选择fork的仓库: 部署命令  `npx wrangler deploy` ,
+
+ 修改为: `npm run deploy -- -c wrangler.images.jsonc` ,其他不动
+
+ <img src="docs/static/cf-workers-images.png" width="300" alt="配置页">
+
+ 点击部署,等待一会即可上线.
 
 #### 命令行部署:
 
-**① 克隆仓库,复制配置模板**
+**① 克隆仓库(图片版配置就是仓库自带的 `wrangler.images.jsonc`,无需复制)**
 
 ```bash
 git clone https://github.com/<你的账号>/1tmsg.git
 cd 1tmsg
-cp wrangler.jsonc.example.r2 wrangler.me.jsonc
 ```
-
-> `wrangler.me.jsonc` 是个人配置,名字随意,但**必须以 `.jsonc` 结尾** —— wrangler 靠后缀判定格式,后缀不认识时会静默忽略整份配置。`wrangler.*.jsonc` 已在 `.gitignore` 里,不会产生 git 改动。
 
 **② 开通 R2 并建桶**
 
@@ -198,10 +209,10 @@ npx wrangler login
 **⑤ 部署**
 
 ```bash
-npm run deploy -- -c wrangler.me.jsonc
+npm run deploy -- -c wrangler.images.jsonc
 ```
 
-> 不加 `-c` 就是 `npm run deploy`,用仓库自带的 `wrangler.jsonc`。加了 `-c`,**构建和部署会读同一份配置**(否则会出现「前端关掉图片、后端却带 R2」的不一致)。命令开头会打印本次生效的配置与开关,核对一眼即可。
+> 不加 `-c` 就是 `npm run deploy`,用仓库自带的 `wrangler.jsonc` ,部署出来的是仅文字版本。
 
 </details>
 
@@ -224,14 +235,14 @@ https://1tmsg.<你的账号>.workers.dev
 | 想做的事 | 怎么做 |
 |---|---|
 | **切换站点默认语言** | 编辑 `wrangler.jsonc` 的 `vars.DEFAULT_LOCALE`（`"zh"` / `"en"`，缺省 `zh`），重新 `npm run deploy`。界面中英双语；**不做浏览器语言自动跟随** —— 站点语言就是这个值，访客可用页面右上角的 `EN / 中文` 按钮手动切换（选择会被记住） |
-| **开启 / 关闭图片功能** | 在 `wrangler.jsonc` 里加上 / 删掉 `r2_buckets` 那一段即可（加之前先开通 R2 并建桶），改完重新 `npm run deploy`；也可以直接换模板复制 |
+| **开启 / 关闭图片功能** | 在 `wrangler.jsonc` 里加上 / 删掉 `r2_buckets` 那一段即可（加之前先开通 R2 并建桶），改完重新 `npm run deploy`；也可以直接部署另一份配置：`npm run deploy -- -c wrangler.images.jsonc` |
 | **用自己的域名** | 编辑 `wrangler.jsonc`，取消 `routes` 那行注释并替换成你的域名，重新 `npm run deploy`。域名需已托管在 Cloudflare；证书与 DNS 记录会自动创建，**不要**再手动加 A/CNAME |
 | **改 Worker 名字** | 改 `wrangler.jsonc` 的 `name`。如果开着图片功能，建桶命令里的桶名也要保持一致（或另起一个桶名并同步改 `bucket_name`） |
 | **关闭 workers.dev 备用地址** | 删掉 `wrangler.jsonc` 里的 `workers_dev` 行，只保留自定义域名 |
 | **调整单条消息 / 图片上限** | 改 `wrangler.jsonc` 的 `vars`（`MAX_MESSAGE_BYTES`、`MAX_ATTACHMENT_BYTES`、`RATE_LIMIT_MAX_CREATES`）后重新部署。后两项只在支持图片的版本里有意义 |
-| **更新版本** | `git pull && npm run deploy` 即可覆盖升级。开关、域名这些本地改动都留在 `wrangler.jsonc` 里，不受影响 |
+| **更新版本** | `git pull && npm run deploy` 即可覆盖升级。**自己的域名、桶名、开关请写进单独的配置文件**（如 `wrangler.me.jsonc`，见上方小技巧）并用 `-c` 指定 —— 直接改 `wrangler.jsonc` 会在 `git pull` 时被覆盖或冲突 |
 
-`wrangler.jsonc` 已加入 `.gitignore`（它会带你的真实域名与桶名），改动只留在本地。
+`wrangler.jsonc`（仅文字）与 `wrangler.images.jsonc`（图片版）都**随仓库提供并保持入库** —— 一键部署要靠它们自动创建资源。会带上你真实域名、桶名的配置请另建文件（如 `wrangler.me.jsonc`）：`.gitignore` 已按 `wrangler*.jsonc` 忽略这类文件，改动只留在本地。
 
 ---
 
@@ -258,7 +269,7 @@ https://1tmsg.<你的账号>.workers.dev
 | 访问密码 | ≥ 6 位，连续输错 10 次销毁消息 |
 | 创建频率 | 每 IP 每分钟 30 条 |
 
-> ※ 仅支持图片的版本（`wrangler.jsonc.example.r2`）有此限制；仅文字的版本用不到这几项。
+> ※ 仅支持图片的版本（`wrangler.images.jsonc`）有此限制；仅文字的版本（`wrangler.jsonc`）用不到这几项。
 
 ---
 
@@ -293,10 +304,10 @@ https://1tmsg.<你的账号>.workers.dev
 能，而且这就是默认路径 —— 仅文字的版本全程不需要 R2，也就不需要绑支付方式。照 `npm install && npx wrangler login && npm run deploy` 三步走完即可。
 
 **Q：部署时提示要开通 R2、要求绑卡？**
-说明 `wrangler.jsonc` 里声明了 `r2_buckets`（也就是用了支持图片的那份模板）。不想绑卡就换成仅文字的版本：把那段 `r2_buckets` 删掉，或重新 `cp wrangler.jsonc.example wrangler.jsonc`，再 `npm run deploy`。
+说明当前用的配置里声明了 `r2_buckets`（也就是走了支持图片的版本）。不想绑卡就换回仅文字的那份：删掉那段 `r2_buckets`，或部署时不加 `-c`（`npm run deploy` 默认就用 `wrangler.jsonc`），再跑一次即可。
 
 **Q：先部署了仅文字的版本，之后想加图片怎么办？**
-按上文完成 R2 开通与建桶，把 `wrangler.jsonc.example.r2` 里那段 `r2_buckets` 抄进 `wrangler.jsonc`（或直接用这份模板覆盖），再 `npm run deploy`。反过来（从支持图片改回仅文字）之后，**之前发出的带图片消息里的图片会打不开** —— 正文和备注仍可正常查看，图片位置显示为缺失占位。
+按上文完成 R2 开通与建桶，把 `wrangler.images.jsonc` 里那段 `r2_buckets` 抄进 `wrangler.jsonc`，或者直接部署图片版：`npm run deploy -- -c wrangler.images.jsonc`。反过来（从支持图片改回仅文字）之后，**之前发出的带图片消息里的图片会打不开** —— 正文和备注仍可正常查看，图片位置显示为缺失占位。
 
 **Q：部署时报错说找不到 bucket？**
 说明建桶时的名字和 `wrangler.jsonc` 里的 `bucket_name` 不一致。两边改成同一个名字即可（默认都是 `1tmsg-blobs`）。
@@ -327,10 +338,11 @@ npm run dev -- -c wrangler.me.jsonc
 npm run deploy -- -c wrangler.me.jsonc
 ```
 
-想本地预览仅文字的版本，把配置换成仅文字的模板再启动即可：
+默认就是仅文字的那份配置；想本地预览图片版，加 `-c` 指过去即可：
 
 ```bash
-cp wrangler.jsonc.example wrangler.jsonc && npm run dev
+npm run dev                              # 仅文字（wrangler.jsonc）
+npm run dev -- -c wrangler.images.jsonc  # 带图片
 ```
 
 本地调试用的是 wrangler 的本地模拟存储，**带着 `r2_buckets` 也不需要真的开通 R2**，不涉及绑卡。

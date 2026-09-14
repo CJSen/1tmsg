@@ -28,5 +28,4 @@ src/i18n/active.ts
 # 注意不是 wrangler.jsonc 本身 —— 那个文件要留在仓库里，一键部署靠它 provision 资源。
 wrangler*.jsonc
 !wrangler.jsonc
-!wrangler.jsonc.example
-!wrangler.jsonc.example.r2
+!wrangler.images.jsonc

@@ -1,12 +1,14 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// 1tmsg · 部署配置模板 —— 带图片功能
+// 1tmsg · 部署配置 —— 带图片功能
 //
-// 复制为 wrangler.jsonc 即可（首次构建也会自动生成；wrangler 只认这个文件名，
-// 生成出来的正式文件不入库）。默认值开箱即用：npm install && npm run deploy
+// 仓库自带的图片版配置，与 wrangler.jsonc 只差下面那段 r2_buckets 是否生效。
+// 用法：npm run deploy -- -c wrangler.images.jsonc
 //
 // 前提：本账号已开通 R2（控制台左侧 R2 → 按提示开通，需绑定支付方式），
-// 且已建好下面那个桶。不想绑卡请改用 wrangler.jsonc.example ——
-// 两份模板只差一段 r2_buckets 声明，本文件的存在本身就是「启用图片」的标志。
+// 且已建好下面那个桶。不想绑卡就用默认的 wrangler.jsonc（仅文字）。
+//
+// ⚠️ 本文件随仓库入库：一键部署靠它自动创建资源，不要加进 .gitignore。
+//    自己的域名、桶名请另建 wrangler.<自定义>.jsonc（已被忽略）。
 //
 // ⚠️ 标「代码耦合」的字段与 src/ 里的绑定名、导出类名一一对应，不要改名，
 //    否则运行时会报 "Cannot read properties of undefined"。
