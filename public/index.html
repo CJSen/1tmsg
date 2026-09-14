@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="color-scheme" content="light">
+<meta name="description" content="Create a burn-after-reading secret message: encrypted in your browser, and the server only ever stores ciphertext it cannot read." data-i18n-content="meta.create.desc">
+<title data-i18n="meta.create.title">Create a secret message · 1tmsg</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/styles.css">
+<script type="module" src="/assets/create.js"></script>
+</head>
+<body>
+
+<!-- 图标 sprite（内联复用，不引图标库、不发额外请求） -->
+<svg class="sprite" aria-hidden="true" focusable="false">
+  <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 2.6c2.6 3.1 4.5 5.5 4.5 8.6a4.5 4.5 0 0 1-9 0c0-1.3.4-2.3 1.1-3.3.3 1 .9 1.7 1.6 1.7.9 0 1.5-.8 1.5-2 0-1.6-.7-3.2-.7-5z"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7 3v5.6c0 4.2-3 7.5-7 9.1-4-1.6-7-4.9-7-9.1V6z"/><path d="M9 12l2.2 2.2L15.5 10"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9.5" rx="2.4"/><path d="M8.5 11V8.4a3.5 3.5 0 0 1 7 0V11"/><path d="M12 15v2"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.2"/><path d="M12 7.6V12l3.1 2"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.4 12S6 6.4 12 6.4 21.6 12 21.6 12 18 17.6 12 17.6 2.4 12 2.4 12z"/><circle cx="12" cy="12" r="2.6"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11.5" height="11.5" rx="2.4"/><path d="M15 5.5H6.5A2 2 0 0 0 4.5 7.5V16"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M4.5 12.6l4.8 4.8L19.5 7.2"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.8l9 16.4H3z"/><path d="M12 10v4.2M12 17h.01"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5.5v13M5.5 12h13"/></symbol>
+  <symbol id="i-img" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2.4"/><circle cx="9" cy="10" r="1.6"/><path d="M4.5 17l4.6-4.3 3.4 3 3-2.6 4 3.6"/></symbol>
+  <symbol id="i-bold" viewBox="0 0 24 24"><path d="M7.5 5h5.6a3.4 3.4 0 0 1 0 6.8H7.5z"/><path d="M7.5 11.8h6.2a3.6 3.6 0 0 1 0 7.2H7.5z"/></symbol>
+  <symbol id="i-italic" viewBox="0 0 24 24"><path d="M10.5 5h7M6.5 19h7M14 5l-4 14"/></symbol>
+  <symbol id="i-code" viewBox="0 0 24 24"><path d="M8.8 7.4L3.8 12l5 4.6M15.2 7.4l5 4.6-5 4.6"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10.2 13.8a4 4 0 0 0 5.7.4l2-2a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M13.8 10.2a4 4 0 0 0-5.7-.4l-2 2a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4.2 6h.01M4.2 12h.01M4.2 18h.01"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8.2" cy="15.2" r="4.2"/><path d="M11.2 12.2l8-8M16 4l3.4 3.4M13.8 6.2l3.4 3.4"/></symbol>
+</svg>
+
+<input class="sr" type="file" id="fileInput" accept="image/*" multiple tabindex="-1" aria-hidden="true">
+
+<!-- ============================ 01 创建 ============================ -->
+<main id="createScreen">
+<div class="frame">
+
+  <div class="topbar">
+    <div class="brand">
+      <span class="mark"><svg class="ico"><use href="#i-flame"/></svg></span>
+      <span>
+        <b class="bn">1tmsg</b>
+        <span class="bs" data-i18n="brand.tagline">Burn after reading · end-to-end encrypted</span>
+      </span>
+    </div>
+    <span class="tr">
+      <span class="pill b band"><svg class="ico ico-13"><use href="#i-shield"/></svg><span data-i18n="create.badge">The server cannot read it</span></span>
+      <button class="lang" type="button" aria-label="Switch to English" data-i18n-aria-label="lang.toEnglish"><span class="cur">中文</span><span class="sep" aria-hidden="true">/</span><span class="alt">EN</span></button>
+    </span>
+  </div>
+
+  <div class="head">
+    <h1 class="h1" data-i18n="create.h1">Create a secret message</h1>
+    <p class="sub" data-i18n="create.sub">It is encrypted in your browser, so only someone who has the link (and the password) can open it — the server can only store ciphertext it cannot read.</p>
+  </div>
+
+  <div class="grid">
+
+    <!-- ---------- 左：输入 ---------- -->
+    <div class="col-a">
+      <section class="card" id="editorCard">
+        <div class="card-hd">
+          <h2><span class="step m-only">1</span><span data-i18n="create.msgTitle">Message</span></h2>
+          <div class="seg" id="mode">
+            <button type="button" data-mode="edit" aria-pressed="true" data-i18n="create.modeEdit">Write</button>
+            <button type="button" data-mode="view" aria-pressed="false" data-i18n="create.modeView">Preview</button>
+          </div>
+        </div>
+
+        <div class="card-bd">
+          <div>
+            <div class="field-hd">
+              <span class="lbl"><span data-i18n="create.noteLabel">Note</span><span class="optag" data-i18n="create.noteOptional">optional</span></span>
+              <span class="cnt" data-i18n="create.noteSide">Visible to the recipient only</span>
+            </div>
+            <input class="in" id="note" maxlength="120" autocomplete="off" placeholder="One line for the recipient, e.g. the file you asked for" data-i18n-placeholder="create.notePh">
+          </div>
+
+          <div id="bodyField">
+            <div class="field-hd">
+              <span class="lbl" data-i18n="create.bodyLabel">Body</span>
+              <span class="cnt"><span id="count">0</span>&nbsp;<span data-i18n="editor.countSuffix">characters · Markdown</span></span>
+            </div>
+
+            <div class="editor">
+              <div class="mdtb">
+                <button class="tbtn" type="button" data-md="bold" title="Bold" data-i18n-title="editor.mdBold"><svg class="ico"><use href="#i-bold"/></svg></button>
+                <button class="tbtn" type="button" data-md="italic" title="Italic" data-i18n-title="editor.mdItalic"><svg class="ico"><use href="#i-italic"/></svg></button>
+                <span class="sp"></span>
+                <button class="tbtn" type="button" data-md="list" title="List" data-i18n-title="editor.mdList"><svg class="ico"><use href="#i-list"/></svg></button>
+                <button class="tbtn" type="button" data-md="code" title="Code" data-i18n-title="editor.mdCode"><svg class="ico"><use href="#i-code"/></svg></button>
+                <button class="tbtn" type="button" data-md="link" title="Link" data-i18n-title="editor.mdLink"><svg class="ico"><use href="#i-link"/></svg></button>
+                <!-- 图片入口：是否启用由部署配置（r2_buckets 有无）决定。
+                     静态 HTML 默认就是关闭态（带 hidden），editor.ts 在开关为真时才移除它，
+                     因此「不带图片的版本」即使脚本没跑起来也不会露出入口。 -->
+                <span class="sp" data-img-only hidden></span>
+                <button class="tbtn" type="button" id="pickImg" title="Insert image" data-img-only hidden data-i18n-title="editor.mdImage"><svg class="ico"><use href="#i-img"/></svg></button>
+                <span class="suffix">MD</span>
+              </div>
+              <textarea id="md" spellcheck="false" aria-label="Message body" placeholder="# Heading&#10;&#10;Supports **Markdown**, lists and code blocks." data-i18n-aria-label="create.bodyAria" data-i18n-placeholder="editor.placeholderPlain"></textarea>
+              <div class="mdv md" id="pv" hidden></div>
+            </div>
+
+            <div class="atray" id="atray" data-img-only hidden>
+              <!-- 数值只是首屏兜底，mount 时会由 editor.ts 按 config.ts 覆盖。 -->
+              <span class="atip"><svg class="ico ico-15"><use href="#i-img"/></svg><span id="atipText">拖拽 / 粘贴 / 点图标插入图片，单张 ≤ 100MB，合计 ≤ 200MB，最多 8 张</span></span>
+              <div class="thumbs" id="thumbs">
+                <button class="tadd" type="button" title="Add image" data-i18n-title="editor.addImage"><svg class="ico ico-17"><use href="#i-plus"/></svg></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ---------- 右：配置 + 创建 ---------- -->
+    <aside class="col-b">
+
+      <section class="card">
+        <div class="card-hd">
+          <h2><span class="step m-only">2</span><span data-i18n="create.lifeCard">Viewing &amp; destruction</span></h2>
+        </div>
+
+        <div class="card-bd">
+          <div class="opt on" id="burnRow">
+            <span>
+              <b data-i18n="create.burn">Burn after reading</b>
+              <span id="burnHint"></span>
+            </span>
+            <button class="sw" type="button" id="burn" role="switch" aria-checked="true" aria-label="Burn after reading" data-i18n-aria-label="create.burn"></button>
+          </div>
+
+          <div id="viewsField" hidden>
+            <div class="field-hd">
+              <span class="lbl" data-i18n="create.viewsLabel">View limit</span>
+              <span class="cnt" data-i18n="create.viewsSide">1 – 100</span>
+            </div>
+            <div class="stepper">
+              <button type="button" data-step="-1" aria-label="Decrease" data-i18n-aria-label="create.viewsDec">−</button>
+              <input id="views" value="5" inputmode="numeric" autocomplete="off" aria-label="View limit" data-i18n-aria-label="create.viewsLabel">
+              <button type="button" data-step="1" aria-label="Increase" data-i18n-aria-label="create.viewsInc">+</button>
+            </div>
+          </div>
+
+          <div>
+            <div class="field-hd">
+              <span class="lbl" data-i18n="create.ttlLabel">Expires in</span>
+              <span class="cnt" data-i18n="create.ttlSide">7 days max</span>
+            </div>
+            <div class="chips" id="ttl">
+              <button type="button" data-ttl="3600" aria-pressed="true" data-i18n="ttl.h1">1 hour</button>
+              <button type="button" data-ttl="21600" aria-pressed="false" data-i18n="ttl.h6">6 hours</button>
+              <button type="button" data-ttl="43200" aria-pressed="false" data-i18n="ttl.h12">12 hours</button>
+              <button type="button" data-ttl="86400" aria-pressed="false" data-i18n="ttl.d1">1 day</button>
+              <button type="button" data-ttl="259200" aria-pressed="false" data-i18n="ttl.d3">3 days</button>
+              <button type="button" data-ttl="604800" aria-pressed="false" data-i18n="ttl.d7">7 days</button>
+            </div>
+          </div>
+
+          <div>
+            <div class="opt" id="pwRow">
+              <span>
+                <b data-i18n="create.pw">Password</b>
+                <span id="pwHint"></span>
+              </span>
+              <button class="sw" type="button" id="pw" role="switch" aria-checked="false" aria-label="Password" data-i18n-aria-label="create.pw"></button>
+            </div>
+            <div id="pwField" class="mt10" hidden>
+              <div class="wrap">
+                <input class="in" id="pwd" type="password" placeholder="Set a password (6 characters or more)" autocomplete="new-password" data-i18n-placeholder="create.pwPh">
+                <button class="eye" type="button" id="eye" aria-label="Show password" data-i18n-aria-label="create.pwShow"><svg class="ico"><use href="#i-eye"/></svg></button>
+              </div>
+              <div class="str" data-s="0"><i></i><i></i><i></i><i></i></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 创建动作区：桌面上吸在右栏底部，移动端位于心流末端 -->
+      <div class="act">
+        <div class="sum" id="sum" aria-live="polite"></div>
+        <button class="btn pri lg block" type="button" id="create">
+          <svg class="ico"><use href="#i-flame"/></svg><span data-i18n="create.submit">Create and copy link</span>
+        </button>
+        <p class="micro">
+          <svg class="ico ico-13"><use href="#i-lock"/></svg>
+          <span data-i18n="create.micro">Encrypted locally with AES-256-GCM — the key never leaves your browser</span>
+        </p>
+      </div>
+
+    </aside>
+  </div>
+</div>
+</main>
+
+<!-- ============================ 02 已创建 ============================ -->
+<section id="sentScreen" hidden>
+<div class="frame narrow">
+  <div class="topbar">
+    <div class="brand">
+      <span class="mark"><svg class="ico"><use href="#i-flame"/></svg></span>
+      <span>
+        <b class="bn">1tmsg</b>
+        <span class="bs" data-i18n="brand.tagline">Burn after reading · end-to-end encrypted</span>
+      </span>
+    </div>
+    <span class="tr">
+      <button class="lang" type="button" aria-label="Switch to English" data-i18n-aria-label="lang.toEnglish"><span class="cur">中文</span><span class="sep" aria-hidden="true">/</span><span class="alt">EN</span></button>
+    </span>
+  </div>
+
+  <section class="card">
+    <div class="card-bd lg">
+      <div class="center">
+        <div class="okico"><svg class="ico"><use href="#i-check"/></svg></div>
+        <h1 class="h1" data-i18n="sent.h1">Message created</h1>
+        <p class="sub center-block"><span data-i18n="sent.sub1">Just send the link to them. The part of the link after</span> <em>#</em> <span data-i18n="sent.sub2">is the decryption key — it lives only in the link and is never sent to the server.</span></p>
+      </div>
+
+      <div class="linkbox">
+        <code id="sentLink"></code>
+        <button class="btn pri" type="button" id="sentCopy"><svg class="ico"><use href="#i-copy"/></svg><span data-i18n="sent.copy">Copy</span></button>
+      </div>
+
+      <div class="sts">
+        <div class="st">
+          <span class="stk"><svg class="ico"><use href="#i-flame"/></svg><span data-i18n="sent.burnKey">Burn after reading</span></span>
+          <b class="stv" id="sentBurn">查看 1 次后销毁</b>
+        </div>
+        <div class="st">
+          <span class="stk"><svg class="ico"><use href="#i-clock"/></svg><span data-i18n="sent.ttlKey">Expires in</span></span>
+          <b class="stv" id="sentTtl">1 小时后失效</b>
+        </div>
+        <div class="st">
+          <span class="stk"><svg class="ico"><use href="#i-key"/></svg><span data-i18n="sent.keyKey">Decryption key</span></span>
+          <b class="stv" id="sentKey">仅在链接里</b>
+        </div>
+      </div>
+
+      <div class="notice warn mt16">
+        <svg class="ico"><use href="#i-alert"/></svg>
+        <span><span data-i18n="sent.warn1">Send it through a channel you trust. </span><b data-i18n="sent.warn2">anyone who has the link can read this message</b><span data-i18n="sent.warn3"> — and once forwarded, a link cannot be recalled.</span></span>
+      </div>
+
+      <div class="notice info mt10">
+        <svg class="ico"><use href="#i-shield"/></svg>
+        <span data-i18n="sent.info">The server only holds ciphertext and an expiry time. Even if the database leaked, it would not reveal what you wrote.</span>
+      </div>
+
+      <button class="btn out block mt18" type="button" id="again" data-i18n="sent.again">Create another</button>
+    </div>
+  </section>
+</div>
+</section>
+
+</body>
+</html>

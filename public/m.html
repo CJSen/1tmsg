@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="color-scheme" content="light">
+<title data-i18n="meta.view.title">View a secret message · 1tmsg</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/styles.css">
+<script type="module" src="/assets/view.js"></script>
+</head>
+<body>
+
+<svg class="sprite" aria-hidden="true" focusable="false">
+  <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 2.6c2.6 3.1 4.5 5.5 4.5 8.6a4.5 4.5 0 0 1-9 0c0-1.3.4-2.3 1.1-3.3.3 1 .9 1.7 1.6 1.7.9 0 1.5-.8 1.5-2 0-1.6-.7-3.2-.7-5z"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7 3v5.6c0 4.2-3 7.5-7 9.1-4-1.6-7-4.9-7-9.1V6z"/><path d="M9 12l2.2 2.2L15.5 10"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9.5" rx="2.4"/><path d="M8.5 11V8.4a3.5 3.5 0 0 1 7 0V11"/><path d="M12 15v2"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.2"/><path d="M12 7.6V12l3.1 2"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.4 12S6 6.4 12 6.4 21.6 12 21.6 12 18 17.6 12 17.6 2.4 12 2.4 12z"/><circle cx="12" cy="12" r="2.6"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.8l9 16.4H3z"/><path d="M12 10v4.2M12 17h.01"/></symbol>
+  <symbol id="i-note" viewBox="0 0 24 24"><path d="M5 5.5h14v9.5l-4.6 4.5H5z"/><path d="M19 15h-4.6v4.5"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.8 7h14.4M9.6 7V4.8h4.8V7M6.6 7l1 12.2h8.8L17.4 7"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8.2" cy="15.2" r="4.2"/><path d="M11.2 12.2l8-8M16 4l3.4 3.4M13.8 6.2l3.4 3.4"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11.5" height="11.5" rx="2.4"/><path d="M15 5.5H6.5A2 2 0 0 0 4.5 7.5V16"/></symbol>
+</svg>
+
+<main>
+<div class="frame narrow">
+
+  <div class="topbar">
+    <div class="brand">
+      <span class="mark"><svg class="ico"><use href="#i-flame"/></svg></span>
+      <span>
+        <b class="bn">1tmsg</b>
+        <span class="bs" data-i18n="brand.tagline">Burn after reading · end-to-end encrypted</span>
+      </span>
+    </div>
+    <span class="tr">
+      <span class="pill n"><svg class="ico ico-13"><use href="#i-lock"/></svg><span data-i18n="view.badge">Decrypted in your browser only</span></span>
+      <button class="lang" type="button" aria-label="Switch to English" data-i18n-aria-label="lang.toEnglish"><span class="cur">中文</span><span class="sep" aria-hidden="true">/</span><span class="alt">EN</span></button>
+    </span>
+  </div>
+
+  <!-- ---------------- 加载中 ---------------- -->
+  <section class="card" id="stateLoading" aria-live="polite">
+    <div class="card-bd lg">
+      <div class="center">
+        <div class="spin" role="presentation"></div>
+        <h1 class="h1" id="loadingTitle" data-i18n="view.loadingTitle">Preparing to decrypt</h1>
+        <p class="sub center-block" id="loadingBody" data-i18n="view.loadingBody">Reading the key from the link and asking the server about this message.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ---------------- 无法打开 ---------------- -->
+  <section class="card" id="stateFatal" hidden>
+    <div class="card-bd lg">
+      <div class="center">
+        <div class="fatalico"><svg class="ico"><use href="#i-alert"/></svg></div>
+        <h1 class="h1" id="fatalTitle" data-i18n="view.fatalTitle">This message cannot be opened</h1>
+        <p class="sub center-block" id="fatalBody"></p>
+      </div>
+      <div class="notice info mt18">
+        <svg class="ico"><use href="#i-shield"/></svg>
+        <span><span data-i18n="view.fatalNote1">The decryption key exists only after the</span> <b>#</b> <span data-i18n="view.fatalNote2">in the original link. The server has never seen it, so it cannot recover a truncated link for you.</span></span>
+      </div>
+      <a class="btn out block mt18" href="/" data-i18n="view.createNew">Create a new message</a>
+    </div>
+  </section>
+
+  <!-- ---------------- 密码解锁 ---------------- -->
+  <section class="card" id="stateUnlock" hidden>
+    <div class="card-bd lg">
+      <div class="center">
+        <div class="lockico"><svg class="ico"><use href="#i-lock"/></svg></div>
+        <h1 class="h1" data-i18n="view.unlockTitle">This message is password protected</h1>
+        <p class="sub center-block" data-i18n="view.unlockSub">Enter the password the sender gave you. It is never sent to the server — verification and decryption both happen in your browser.</p>
+      </div>
+
+      <div class="mt22">
+        <div class="field-hd">
+          <span class="lbl" data-i18n="view.pwLabel">Password</span>
+          <span class="cnt" data-i18n="view.pwSide">Only a successful decryption counts as a view</span>
+        </div>
+        <div class="wrap">
+          <input class="in" id="pwd2" type="password" placeholder="Enter password" autocomplete="off" data-i18n-placeholder="view.pwPh">
+          <button class="eye" type="button" id="eye2" aria-label="Show password" data-i18n-aria-label="create.pwShow"><svg class="ico"><use href="#i-eye"/></svg></button>
+        </div>
+      </div>
+
+      <p class="notice dan mt14" id="unlockError" hidden></p>
+
+      <button class="btn pri lg block mt14" type="button" id="unlockBtn">
+        <svg class="ico"><use href="#i-lock"/></svg><span data-i18n="view.unlockBtn">Decrypt and view</span>
+      </button>
+
+      <div class="notice warn mt14">
+        <svg class="ico"><use href="#i-alert"/></svg>
+        <span><span data-i18n="view.unlockWarn1">A wrong password does not use up a view — </span><b data-i18n="view.unlockWarn2">only a successful decryption counts</b><span data-i18n="view.unlockWarn3">.</span></span>
+      </div>
+
+      <p class="micro mt14">
+        <svg class="ico ico-13"><use href="#i-shield"/></svg>
+        <span data-i18n="view.unlockMicro">PBKDF2 → HKDF → AES-256-GCM, all local</span>
+      </p>
+    </div>
+  </section>
+
+  <!-- ---------------- 查看内容 ---------------- -->
+  <section class="card" id="stateRead" hidden>
+    <div class="rbar">
+      <span class="pill b"><svg class="ico ico-13"><use href="#i-lock"/></svg><span id="readBadgeText">已在本地解密</span></span>
+      <span class="rgroup">
+        <span class="cnt"><svg class="ico ico-13"><use href="#i-clock"/></svg><span id="readExpiry"></span></span>
+        <button class="cpbtn" type="button" id="copyTop" aria-label="Copy all content" data-i18n-aria-label="view.copyAria">
+          <svg class="ico ico-13"><use href="#i-copy"/></svg><span data-i18n="view.copy">Copy</span>
+        </button>
+      </span>
+    </div>
+
+    <div class="card-bd">
+      <div class="note" id="noteBox" hidden>
+        <svg class="ico"><use href="#i-note"/></svg>
+        <span id="noteText"></span>
+      </div>
+      <div class="md" id="readBody"></div>
+      <button class="btn out block" type="button" id="copyBottom">
+        <svg class="ico"><use href="#i-copy"/></svg><span data-i18n="view.copyAll">Copy everything</span>
+      </button>
+    </div>
+
+    <div class="rdone" id="readDone" hidden>
+      <svg class="ico"><use href="#i-trash"/></svg>
+      <span><span data-i18n="view.readDone1">This was a burn-after-reading message — the ciphertext on the server </span><b data-i18n="view.readDone2">has already been deleted</b><span data-i18n="view.readDone3">. Do not close or reload this page, or the content cannot be opened again.</span></span>
+    </div>
+
+    <div class="cta">
+      <p class="ctat" data-i18n="view.ctaTitle">Want to send one safely too?</p>
+      <a class="btn pri block" href="/">
+        <svg class="ico"><use href="#i-flame"/></svg><span data-i18n="view.ctaBtn">Create my own</span>
+      </a>
+      <p class="micro">
+        <svg class="ico ico-13"><use href="#i-shield"/></svg>
+        <span data-i18n="view.ctaMicro">No sign-up · encrypted in the browser · destroyed once opened</span>
+      </p>
+    </div>
+  </section>
+
+</div>
+</main>
+
+</body>
+</html>

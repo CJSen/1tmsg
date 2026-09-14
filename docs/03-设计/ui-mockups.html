@@ -1,0 +1,1615 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex">
+<meta name="color-scheme" content="light">
+<title>1tmsg · 界面设计稿 v2（创建 / 分享 / 解锁 / 查看 / 异常）</title>
+<!--
+  1tmsg · UI v2 · 设计稿 + 实现参考
+  ---------------------------------------------------------------------------
+  真源声明：本文件已与下列正式代码同步（2026-09-14），三处不一致时以正式代码为准。
+    · src/styles.css        样式（第 3 节起的「产品样式」逐条镜像本文件）
+    · public/index.html     01 创建 / 02 已创建
+    · public/m.html         03 密码解锁 / 04 查看内容 / 05 加载与失败
+    · src/client/*.ts       文案、状态机、Toast / 进度弹窗的触发时机
+
+  设计语言：纸张暖中性 + 余烬橙
+    · brand-600 #BC4219 承载文字与实心按钮（对白底 5.34:1，满足 WCAG AA）
+    · brand-500 #E8552A 只用于非文字元素（开关、焦点环、进度）
+    · 卡片圆角 16 / 控件圆角 10 / 胶囊 999；暖墨色阶承载层级
+
+  版式
+    · ≥920px：两栏 = 左「输入」 / 右「配置 + 创建动作区」，右栏 sticky
+    · <920px：纵向心流 = ① 内容 → ② 配置 → ③ 创建
+    · 断点用 @media，与 src/styles.css 完全一致（不要在正式代码里改用 @container）
+
+  资源策略（对应「网络差也要能用」）
+    · 单文件、0 外部请求：无 webfont、无 CDN、无图片请求、无 JS 框架
+    · 图标 = 内联 SVG sprite 复用；用系统字体栈替代 webfont（省 100–300KB）
+    · 演示图片用内联 data: SVG，不产生任何网络请求
+    · 不引 Markdown / DOMPurify 库：演示用约 40 行「先转义、再解析」的本地渲染
+
+  ---------------------------------------------------------------------------
+  本文件独有（设计稿外壳，正式代码里不存在，抽取到 src/ 时必须整段丢掉）
+    · .proto / .pnav / .ptool        顶部切屏工具条
+    · .screen / .screen.is-on        状态页切换（正式代码用 hidden + show()）
+    · .frame.phone                   手机预览框；正式代码无此机制，靠 @media 断点
+    · .stage / .demo-row             组件演示区（仅 05 页用）
+    · #s-create #s-sent #s-unlock #s-read #s-states
+                                     外壳的屏幕 id；对应关系：
+                                       #s-create → public/index.html #createScreen
+                                       #s-sent   → public/index.html #sentScreen
+                                       #s-unlock → public/m.html     #stateUnlock
+                                       #s-read   → public/m.html     #stateRead
+                                       #s-states → public/m.html     #stateLoading / #stateFatal
+  除上述之外，所有类名、id、层级、文案均与正式代码逐字一致，可直接比对抽取。
+  校验方式：从 src/styles.css 抽出的每条规则都应在第 3–12 节找到同名同值的声明。
+-->
+<style>
+/* ==========================================================================
+   1. Tokens（镜像 src/styles.css §1）
+   ========================================================================== */
+:root{
+  /* brand — ember */
+  --b50:#FFF4EE; --b100:#FFE5D9; --b200:#FFCBB2; --b300:#FCA982;
+  --b400:#F47E4E; --b500:#E8552A; --b600:#BC4219; --b700:#9E3410;
+  /* neutral — warm ink */
+  --i900:#1A1513; --i800:#2C2521; --i700:#483F3A; --i600:#645A54; --i500:#6B625C; --i400:#7A7069;
+  --line:#EAE4DF; --line2:#D9D1CB; --bg:#FAF8F6; --sf:#FFFFFF; --sf2:#F7F4F1; --sf3:#F0EBE7;
+  /* semantic */
+  --ok:#0A7A56; --okS:#E4F6EF; --okL:#B7E4D3;
+  --warn:#8A5610; --warnS:#FCF3E2; --warnL:#EFD9AC;
+  --dan:#B93020; --danS:#FDECE8; --danL:#F3C7BC;
+  --info:#3A5BC7; --infoS:#EDF0FC; --infoL:#C9D3F2;
+  /* shape & motion */
+  --r:16px; --rc:10px; --rs:8px; --rp:999px;
+  --s1:0 1px 2px rgba(26,21,19,.05),0 1px 1px rgba(26,21,19,.03);
+  --s2:0 14px 34px -16px rgba(26,21,19,.20),0 3px 8px rgba(26,21,19,.05);
+  --s3:0 28px 64px -24px rgba(26,21,19,.28);
+  --ring:0 0 0 3px rgba(232,85,42,.16);
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans SC",sans-serif;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+  --t:180ms cubic-bezier(.4,0,.2,1);
+}
+
+/* ==========================================================================
+   2. Base（镜像 §2）
+   ========================================================================== */
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;font-family:var(--sans);background:var(--bg);color:var(--i900);
+  font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;
+}
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(760px 420px at 10% -10%,rgba(232,85,42,.10),transparent 70%),
+    radial-gradient(560px 360px at 94% 2%,rgba(58,91,199,.07),transparent 72%);
+}
+h1,h2,h3,h4,p,ul,ol,figure,blockquote{margin:0}
+ul,ol{padding:0}
+button{font:inherit;color:inherit}
+input,textarea,select{font:inherit;color:inherit}
+a{color:var(--info)}
+::selection{background:var(--b200);color:var(--i900)}
+:focus-visible{outline:2px solid var(--b500);outline-offset:2px}
+.ico{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.ico-13{width:13px;height:13px}
+.ico-15{width:15px;height:15px}
+.ico-17{width:17px;height:17px}
+/* 作者样式里的 display 会盖掉 UA 的 [hidden]，所以必须显式确保 hidden 生效 */
+[hidden]{display:none!important}
+.m-only{display:none}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.sprite{position:absolute;width:0;height:0;overflow:hidden}
+
+/* 间距工具（替代内联 style，正式代码同款） */
+.mt10{margin-top:10px} .mt14{margin-top:14px} .mt16{margin-top:16px}
+.mt18{margin-top:18px} .mt22{margin-top:22px}
+.center-block{margin-left:auto;margin-right:auto}
+
+/* ==========================================================================
+   3. 舞台 / 页面骨架（镜像 §3）
+   ========================================================================== */
+main{position:relative;z-index:1}
+.frame{max-width:1180px;margin:0 auto;padding:36px 22px 96px}
+.frame.narrow{max-width:640px}
+
+/* 页头 */
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:26px}
+.brand{display:flex;align-items:center;gap:10px}
+.mark{
+  width:36px;height:36px;flex:none;border-radius:11px;display:grid;place-items:center;color:#fff;
+  background:linear-gradient(150deg,var(--b400),var(--b600));
+  box-shadow:0 8px 18px -8px rgba(188,66,25,.6);
+}
+.mark .ico{width:19px;height:19px;stroke-width:1.7}
+.bn{display:block;font-size:16.5px;font-weight:700;letter-spacing:-.02em;line-height:1.25}
+.bs{display:block;font-size:11.5px;color:var(--i500);line-height:1.3}
+.head{margin-bottom:22px}
+.h1{font-size:29px;font-weight:700;letter-spacing:-.03em;line-height:1.22}
+.sub{font-size:13.5px;color:var(--i500);margin-top:8px;max-width:62ch}
+.sub em{font-style:normal;font-weight:700;color:var(--b600)}
+.center{text-align:center}
+
+/* px */
+.pill{
+  display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;
+  padding:4px 10px;border-radius:var(--rp);border:1px solid transparent;white-space:nowrap;
+}
+.pill.b{background:var(--b50);color:var(--b600);border-color:var(--b100)}
+.pill.ok{background:var(--okS);color:var(--ok);border-color:var(--okL)}
+.pill.warn{background:var(--warnS);color:var(--warn);border-color:var(--warnL)}
+.pill.n{background:var(--sf2);color:var(--i500);border-color:var(--line)}
+
+/* ==========================================================================
+   4. 卡片 / 表单（镜像 §4）
+   ========================================================================== */
+.card{background:var(--sf);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--s2);overflow:hidden}
+.card-hd{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:13px 18px;border-bottom:1px solid var(--line);background:var(--sf2);
+}
+.card-hd h2{font-size:13.5px;font-weight:700;letter-spacing:-.01em;display:flex;align-items:center;gap:9px}
+/* minmax(0,1fr)：隐式 auto 轨道的最小尺寸 = 内容的 min-content，
+   一旦卡片里出现不可断行的长串（分享页那条 one-line 长链接就是典型），
+   轨道会被撑到比卡片还宽 → 全卡片内容右移并被 .card 的 overflow:hidden 裁掉。
+   把轨道最小值钉成 0，长串只会在自己的盒子里省略号，不再影响整张卡片。 */
+.card-bd{display:grid;grid-template-columns:minmax(0,1fr);gap:18px;padding:18px}
+.card-bd.lg{padding:28px 26px 26px;gap:0}
+.step{
+  width:19px;height:19px;flex:none;border-radius:6px;display:grid;place-items:center;
+  font:700 11px/1 var(--mono);background:var(--i900);color:var(--bg);
+}
+
+.field-hd{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+.lbl{font-size:13px;font-weight:650;color:var(--i800);display:flex;align-items:center;gap:7px}
+.optag{font-size:10.5px;font-weight:600;color:var(--i400);border:1px solid var(--line);padding:1px 6px;border-radius:var(--rp);background:var(--sf)}
+.cnt{font:500 11px/1 var(--mono);color:var(--i400);display:flex;align-items:center;gap:6px}
+.in{
+  width:100%;background:var(--sf2);border:1px solid var(--line);border-radius:var(--rc);
+  padding:10px 12px;font-size:14px;outline:none;transition:var(--t);
+}
+.in::placeholder{color:var(--i400)}
+.in:hover{border-color:var(--line2)}
+.in:focus{background:var(--sf);border-color:var(--b400);box-shadow:var(--ring)}
+.wrap{position:relative;display:flex;align-items:center}
+.wrap .in{padding-right:44px}
+.eye{position:absolute;right:5px;border:0;background:none;cursor:pointer;padding:7px;border-radius:7px;color:var(--i400);display:grid;place-items:center}
+.eye:hover{background:var(--sf3);color:var(--i700)}
+.seg{display:flex;gap:2px;padding:2px;background:var(--sf3);border:1px solid var(--line);border-radius:var(--rp)}
+.seg button{border:0;background:none;cursor:pointer;padding:5px 13px;border-radius:var(--rp);font-size:12px;font-weight:650;color:var(--i500);transition:var(--t)}
+.seg button[aria-pressed="true"]{background:var(--sf);color:var(--i900);box-shadow:var(--s1)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chips button{
+  border:1px solid var(--line);background:var(--sf);cursor:pointer;padding:7px 12px;
+  border-radius:var(--rp);font-size:12.5px;font-weight:600;color:var(--i600);
+  box-shadow:var(--s1);transition:var(--t);
+}
+.chips button:hover{border-color:var(--line2);color:var(--i900)}
+.chips button[aria-pressed="true"]{background:var(--i900);border-color:var(--i900);color:var(--bg)}
+.stepper{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:var(--rc);overflow:hidden;background:var(--sf)}
+.stepper button{width:38px;height:38px;border:0;background:var(--sf2);cursor:pointer;color:var(--i600);display:grid;place-items:center;font-size:17px;line-height:1;transition:var(--t)}
+.stepper button:hover{background:var(--sf3);color:var(--i900)}
+.stepper input{width:58px;height:38px;border:0;background:none;text-align:center;font:700 14px/1 var(--sans);outline:none}
+
+.str{display:flex;gap:4px;margin-top:8px}
+.str i{height:3px;flex:1;border-radius:2px;background:var(--sf3);transition:var(--t)}
+.str[data-s="1"] i:nth-child(-n+1){background:var(--dan)}
+.str[data-s="2"] i:nth-child(-n+2){background:var(--warn)}
+.str[data-s="3"] i:nth-child(-n+3){background:#C9A227}
+.str[data-s="4"] i{background:var(--ok)}
+
+/* 开关行 */
+.opt{
+  display:flex;align-items:center;justify-content:space-between;gap:16px;
+  padding:12px 14px;border:1px solid var(--line);border-radius:var(--rc);
+  background:var(--sf2);transition:var(--t);
+}
+.opt.on{border-color:var(--b200);background:var(--b50)}
+.opt b{display:block;font-size:13px;font-weight:650;color:var(--i800)}
+.opt span{display:block;font-size:11.5px;color:var(--i500);line-height:1.45;margin-top:1px}
+.opt .mut{color:var(--i400);font-style:normal;margin-top:3px}
+.sw{
+  position:relative;width:44px;height:26px;flex:none;border-radius:var(--rp);
+  border:1px solid var(--line2);background:var(--sf3);cursor:pointer;padding:0;transition:var(--t);
+}
+.sw::after{
+  content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;
+  background:#fff;box-shadow:0 1px 3px rgba(26,21,19,.3);transition:var(--t);
+}
+.sw[aria-checked="true"]{background:var(--b500);border-color:var(--b500)}
+.sw[aria-checked="true"]::after{transform:translateX(18px)}
+
+/* ==========================================================================
+   5. 编辑器 / 附件（镜像 §5）
+   ========================================================================== */
+.editor{border:1px solid var(--line);border-radius:var(--rc);background:var(--sf2);overflow:hidden;transition:var(--t)}
+.editor:focus-within{border-color:var(--b400);background:var(--sf);box-shadow:var(--ring)}
+.mdtb{display:flex;align-items:center;gap:1px;padding:5px 7px;background:var(--sf);border-bottom:1px solid var(--line);flex-wrap:wrap}
+.mdtb .tbtn{border:0;background:none;cursor:pointer;padding:6px;border-radius:6px;color:var(--i500);display:grid;place-items:center;transition:var(--t)}
+.mdtb .tbtn:hover{background:var(--sf2);color:var(--i900)}
+.mdtb .sp{width:1px;height:16px;background:var(--line);margin:0 5px}
+.mdtb .suffix{margin-left:auto;font:600 10.5px/1 var(--mono);color:var(--i400);padding-right:4px;letter-spacing:.04em}
+#md{
+  display:block;width:100%;border:0;background:none;outline:none;resize:vertical;
+  min-height:252px;padding:14px 15px;font:400 13px/1.8 var(--mono);
+}
+.mdv{padding:16px 18px;min-height:252px}
+/* 预览态：只留渲染结果，工具栏与附件托盘（只服务于编辑）一并收起 */
+.previewing .mdtb,.previewing .atray{display:none}
+.previewing .mdv{background:var(--sf)}
+.atray{
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:10px;
+  padding:10px 12px;border:1px dashed var(--line2);border-radius:var(--rc);
+  background:var(--sf2);transition:var(--t);
+}
+.atray.hot{border-color:var(--b400);background:var(--b50)}
+.atip{font-size:11.5px;color:var(--i500);display:flex;align-items:center;gap:7px;flex:1;min-width:190px;line-height:1.45}
+.thumbs{display:flex;gap:8px;flex-wrap:wrap}
+.thumb{
+  position:relative;width:64px;height:48px;border-radius:var(--rs);overflow:hidden;
+  border:1px solid var(--line);background:linear-gradient(140deg,#FCD9C4,#F2A98A);box-shadow:var(--s1);
+}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.thumb .x{
+  position:absolute;top:2px;right:2px;width:17px;height:17px;border:0;border-radius:50%;
+  background:rgba(20,16,14,.7);color:#fff;cursor:pointer;display:grid;place-items:center;
+  font-size:11px;line-height:1;padding:0;
+}
+.thumb .x:hover{background:var(--dan)}
+.tadd{
+  width:64px;height:48px;border:1px solid var(--line2);border-radius:var(--rs);
+  background:var(--sf);color:var(--i500);cursor:pointer;display:grid;place-items:center;transition:var(--t);
+}
+.tadd:hover{border-color:var(--b400);color:var(--b600);background:var(--b50)}
+
+/* ==========================================================================
+   6. 布局 + 创建动作区（镜像 §6）
+   ========================================================================== */
+.grid{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;align-items:start}
+.col-b{display:grid;gap:0}
+.act{
+  margin-top:16px;padding:16px;border:1px solid var(--b200);border-radius:var(--r);
+  background:linear-gradient(180deg,var(--b50),var(--sf));box-shadow:var(--s1);
+}
+.sum{display:grid;gap:5px;margin-bottom:14px}
+.srow{display:flex;align-items:baseline;justify-content:space-between;gap:12px;font-size:12.5px;line-height:1.5}
+.srow .k{color:var(--i500);flex:none}
+.srow .v{font-weight:650;color:var(--b600);text-align:right;white-space:nowrap}
+.micro{display:flex;align-items:center;justify-content:center;gap:6px;font-size:11px;color:var(--i400);margin-top:10px;text-align:center;line-height:1.5}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid transparent;
+  border-radius:var(--rc);cursor:pointer;padding:11px 20px;font-size:14px;font-weight:650;
+  letter-spacing:-.01em;transition:var(--t);white-space:nowrap;background:var(--sf);text-decoration:none;
+}
+.btn .ico{width:17px;height:17px}
+.btn.pri{background:var(--b600);color:#fff;box-shadow:0 10px 24px -12px rgba(188,66,25,.9)}
+.btn.pri:hover{background:var(--b700);transform:translateY(-1px)}
+.btn.out{border-color:var(--line);color:var(--i800);box-shadow:var(--s1)}
+.btn.out:hover{border-color:var(--line2);transform:translateY(-1px)}
+.btn.lg{padding:14px 24px;font-size:15px}
+.btn.block{width:100%}
+.btn[disabled],.btn[aria-busy="true"]{opacity:.62;cursor:progress;transform:none!important}
+
+/* ==========================================================================
+   7. 提示条 / 状态块（镜像 §7）
+   ========================================================================== */
+.notice{
+  display:flex;gap:10px;padding:12px 14px;border-radius:var(--rc);border:1px solid var(--line);
+  background:var(--sf2);font-size:12.5px;line-height:1.65;color:var(--i700);
+}
+.notice .ico{margin-top:2px}
+.notice b{color:var(--i900)}
+.notice.warn{border-color:var(--warnL);background:var(--warnS)}
+.notice.ok{border-color:var(--okL);background:var(--okS)}
+.notice.info{border-color:var(--infoL);background:var(--infoS)}
+.notice.dan{border-color:var(--danL);background:var(--danS);color:var(--dan)}
+.notice code{font:400 11.5px/1 var(--mono);background:rgba(26,21,19,.07);padding:2px 5px;border-radius:5px}
+/* flex 文本项默认 min-width:auto —— 里面的长串（长链接/无空格长串）会顶开整行，
+   实测 320px 容器下越界 1458px 并被 .card 裁掉。钉住 min-width 才收得住。 */
+.note > span,.notice > span,.rdone > span{min-width:0;overflow-wrap:anywhere}
+
+/* ==========================================================================
+   8. 已创建（分享）（镜像 §8）
+   ========================================================================== */
+.okico{
+  width:54px;height:54px;margin:0 auto 16px;border-radius:17px;display:grid;place-items:center;
+  background:var(--okS);border:1px solid var(--okL);color:var(--ok);
+}
+.okico .ico{width:27px;height:27px;stroke-width:1.9}
+.linkbox{display:flex;align-items:center;gap:8px;padding:8px;margin:20px 0 14px;border:1px solid var(--line);border-radius:var(--rc);background:var(--sf2);min-width:0}
+.linkbox code{
+  flex:1;min-width:0;padding-left:6px;font:400 12px/1.5 var(--mono);color:var(--i600);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;
+}
+.linkbox code em{font-style:normal;font-weight:700;color:var(--b600)}
+.linkbox .btn{flex:none;padding:9px 14px;font-size:13px}
+/* 同上：三列状态块的 min-content 也可能被长词撑破（"100 次" 之类），一并钉住 */
+.sts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:14px;text-align:left}
+.st{padding:12px 14px;border:1px solid var(--line);border-radius:var(--rc);background:var(--sf2)}
+.stk{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--i500)}
+.stv{display:block;font-size:13.5px;font-weight:650;color:var(--i900);margin-top:3px}
+
+/* ==========================================================================
+   9. 解锁 / 查看（镜像 §9）
+   ========================================================================== */
+.lockico{
+  width:52px;height:52px;margin:0 auto 16px;border-radius:17px;display:grid;place-items:center;
+  background:var(--b50);border:1px solid var(--b100);color:var(--b600);
+}
+.lockico .ico{width:26px;height:26px;stroke-width:1.7}
+.fatalico{
+  width:52px;height:52px;margin:0 auto 16px;border-radius:17px;display:grid;place-items:center;
+  background:var(--warnS);border:1px solid var(--warnL);color:var(--warn);
+}
+.fatalico .ico{width:26px;height:26px;stroke-width:1.7}
+.note{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:var(--rc);background:var(--b50);border:1px solid var(--b100);font-size:13.5px;color:var(--i800)}
+.note .ico{margin-top:2px;color:var(--b600)}
+.rbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:11px 16px;border-bottom:1px solid var(--line);background:var(--sf2)}
+.rgroup{display:inline-flex;align-items:center;gap:10px;margin-left:auto}
+/* 内容头/尾的复制按钮：头部是轻量 chip，尾部用 .btn.out.block 做显眼的大按钮 */
+.cpbtn{
+  display:inline-flex;align-items:center;gap:5px;padding:5px 10px;cursor:pointer;
+  border:1px solid var(--line);border-radius:var(--rp);background:var(--sf);
+  color:var(--i600);font-size:11.5px;font-weight:650;white-space:nowrap;transition:var(--t);
+}
+.cpbtn:hover{border-color:var(--line2);color:var(--i900)}
+.cpbtn.ok{border-color:var(--okL);background:var(--okS);color:var(--ok)}
+.cta{display:grid;gap:10px;padding:16px 18px 18px;border-top:1px solid var(--line);background:var(--sf2)}
+.ctat{font-size:12.5px;font-weight:650;color:var(--i600);text-align:center}
+.cta .micro{margin-top:0}
+.rdone{display:flex;gap:10px;padding:13px 16px;border-top:1px solid var(--line);background:var(--warnS);font-size:12.5px;line-height:1.6;color:var(--warn)}
+.rdone .ico{margin-top:2px}
+
+/* 加载态 */
+.spin{width:26px;height:26px;margin:0 auto 14px;border-radius:50%;border:2.5px solid var(--line2);border-top-color:var(--b500);animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ==========================================================================
+   10. Markdown 输出（镜像 §10；真实解析见 src/client/markdown.ts）
+   ========================================================================== */
+/* 折行策略：这里必须用 `anywhere`，不能用 `break-word`。
+   break-word 只在排版最后一步断词，不参与 min-content 计算 ——
+   auto 布局的 table 依旧会被长串顶到 1800px 宽（390px 移动视口实测越界 1545px），
+   而 .card 的 overflow:hidden 会把它直接裁掉，右侧内容永久看不见。
+   anywhere 参与 min-content 计算，长串才会真正收进容器。 */
+.md{font-size:14px;line-height:1.8;color:var(--i800);overflow-wrap:anywhere}
+.md h1,.md h2,.md h3,.md h4,.md h5,.md h6{font-weight:700;letter-spacing:-.02em;color:var(--i900);margin:20px 0 10px;line-height:1.3}
+.md > :first-child{margin-top:0}
+.md h1{font-size:21px}
+.md h2{font-size:18.5px}
+.md h3{font-size:17px}
+.md h4{font-size:15px}
+.md h5,.md h6{font-size:14px}
+.md p{margin:0 0 12px}
+.md ul,.md ol{margin:0 0 12px;padding-left:22px}
+.md li{margin-bottom:5px}
+.md li > ul,.md li > ol{margin-top:5px;margin-bottom:0}
+.md b,.md strong{font-weight:700;color:var(--i900)}
+.md em{font-style:italic}
+.md del{color:var(--i500)}
+.md code{font:400 12.5px/1.5 var(--mono);background:var(--sf3);padding:2px 5px;border-radius:5px;color:var(--b700)}
+/* 代码块：移动端不做横向滚动，长行直接折行（换行与缩进仍然保留）。
+   只加 overflow-wrap 无效 —— <pre> 的 white-space:pre 本身就拒绝折行，
+   必须一起改成 pre-wrap。 */
+.md pre{margin:0 0 12px;padding:12px 14px;border-radius:var(--rc);background:var(--i900);color:#F1EBE7;white-space:pre-wrap;overflow-wrap:anywhere;overflow:auto}
+.md pre code{background:none;color:inherit;padding:0;font-size:12.5px;line-height:1.6}
+.md blockquote{margin:0 0 12px;padding:5px 0 5px 14px;border-left:3px solid var(--b300);color:var(--i600)}
+.md blockquote > :last-child{margin-bottom:0}
+.md a{color:var(--info);text-decoration:underline;text-underline-offset:2px}
+.md hr{border:0;border-top:1px solid var(--line);margin:18px 0}
+.md img{display:block;max-width:100%;height:auto;border-radius:var(--rc);border:1px solid var(--line);margin:4px 0 12px}
+.md table{width:100%;border-collapse:collapse;margin:0 0 12px;font-size:13px}
+.md th,.md td{border:1px solid var(--line);padding:7px 10px;text-align:left}
+/* 表头不折行：2 字中文表头（"字段"）在 anywhere 折行策略下会被拆成两行。
+   表头文字本来就短，保持单行；真出现超长表头时，下面 .md-scroll 兜底可滑动。 */
+.md th{background:var(--sf2);font-weight:650;color:var(--i900);white-space:nowrap}
+/* 表格兜底容器：多列表格再怎么钉 min-width 也可能超出正文宽度，
+   给一层横向滚动，宁可滑动也不能被 .card{overflow:hidden} 裁掉。
+   （由 markdown.ts 的 hydrateMarkdown 在渲染后包上） */
+.md-scroll{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.md figcaption{font-size:12px;color:var(--i500);margin-top:-8px;margin-bottom:12px}
+/* 被策略拦下的图片：不加载、可读、不刺眼 */
+.imgblocked{
+  display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border:1px dashed var(--line2);
+  background:var(--sf2);color:var(--i500);border-radius:var(--rp);font-size:11.5px;font-weight:600;
+}
+
+/* ==========================================================================
+   11. Toast / 处理中弹窗（镜像 §11）
+   ========================================================================== */
+.toast{
+  position:fixed;left:50%;bottom:28px;transform:translate(-50%,14px);z-index:90;
+  max-width:min(88vw,460px);padding:11px 16px;border-radius:var(--rc);border:1px solid var(--i800);
+  background:var(--i900);color:var(--bg);font-size:13px;font-weight:600;line-height:1.5;
+  box-shadow:var(--s3);opacity:0;pointer-events:none;transition:var(--t);
+}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+.toast.err{background:var(--dan);border-color:var(--dan)}
+
+/* 处理中弹窗：创建流程（本地加密 → 图片上传 → 确认）的阻塞式进度反馈。
+   刻意做成 modal 而不是角落 toast —— 这几步用户必须等完，且期间不该再碰页面。 */
+.modal{
+  position:fixed;inset:0;z-index:110;display:grid;place-items:center;
+  padding:20px;background:rgba(26,21,19,.32);
+  opacity:0;pointer-events:none;transition:var(--t);
+}
+.modal.on{opacity:1;pointer-events:auto}
+.modal-bd{
+  width:min(86vw,304px);padding:26px 22px 24px;border-radius:var(--r);
+  border:1px solid var(--line);background:var(--sf);box-shadow:var(--s3);text-align:center;
+  transform:translateY(10px) scale(.97);transition:var(--t);
+}
+.modal.on .modal-bd{transform:none}
+.modal-tx{font-size:13.5px;font-weight:650;color:var(--i800);line-height:1.55}
+
+/* ==========================================================================
+   12. 响应式（镜像 §12）
+   ========================================================================== */
+@media (min-width: 920px){
+  .frame{container-type:inline-size}
+  .grid{grid-template-columns:minmax(0,1fr) 340px;gap:26px}
+  .col-b{position:sticky;top:22px}
+  /* 查看页宽度对齐创建页的输入列：
+     770 = 1180（.frame 上限）− 22×2（内边距）− 340（右栏）− 26（列间距）。
+     这样收件人读到的正文宽度（770 − 2 边框 − 18×2 内边距 = 732）与发送者
+     编辑时的输入框/正文区完全一致，行宽与折行位置不再跳变。
+     ≥920px 才改；≤919px 仍是单列 + 640 上限，移动端观感不变。 */
+  .frame.narrow{max-width:814px}
+}
+@media (max-width: 919px){
+  .topbar{margin-bottom:20px;flex-wrap:wrap}
+  .h1{font-size:22px}
+  .head{margin-bottom:18px}
+  .sub{font-size:13px}
+  .card-bd{padding:16px;gap:16px}
+  .card-bd.lg{padding:22px 18px}
+  #md{min-height:186px}
+  .mdv{min-height:186px}
+  .m-only{display:inline-flex}
+  .act{margin-top:14px}
+  .btn.lg{padding:15px 22px}
+  .frame.narrow{padding:26px 18px 80px}
+}
+@media (max-width: 640px){
+  .frame{padding:24px 16px 80px}
+  .band{display:none}
+}
+@media (max-width: 559px){
+  .sts{grid-template-columns:1fr}
+}
+@media print{.toast,.modal{display:none}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ==========================================================================
+   13. 设计稿外壳（正式代码里不存在，抽取到 src/ 时整段删除）
+   ========================================================================== */
+.proto{position:sticky;top:0;z-index:60;border-bottom:1px solid var(--line);background:rgba(250,248,246,.88);backdrop-filter:saturate(160%) blur(10px)}
+.proto-in{max-width:1180px;margin:0 auto;padding:9px 20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.tag{font:700 10.5px/1 var(--mono);letter-spacing:.08em;padding:6px 9px;border-radius:var(--rp);color:var(--b600);background:var(--b50);border:1px solid var(--b100);white-space:nowrap}
+.tag.alt{color:var(--i500);background:var(--sf2);border-color:var(--line)}
+.pnav{display:flex;gap:3px;flex-wrap:wrap;flex:1}
+.pnav button{border:1px solid transparent;background:none;cursor:pointer;padding:6px 11px;border-radius:var(--rp);font-size:12.5px;font-weight:600;color:var(--i500);transition:var(--t)}
+.pnav button:hover{background:var(--sf2);color:var(--i800)}
+.pnav button[aria-current="true"]{background:var(--i900);border-color:var(--i900);color:var(--bg)}
+.ptool{border:1px solid var(--line);background:var(--sf);cursor:pointer;padding:6px 11px;border-radius:var(--rc);font-size:12.5px;font-weight:600;color:var(--i700);box-shadow:var(--s1);transition:var(--t)}
+.ptool:hover{border-color:var(--line2);transform:translateY(-1px)}
+
+.screen{display:none}
+.screen.is-on{display:block;animation:rise .4s cubic-bezier(.16,1,.3,1)}
+@keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.stack{display:grid;gap:18px}
+.stage{padding:16px 18px;border:1px dashed var(--line2);border-radius:var(--r);background:var(--sf2)}
+.stage-hd{font-size:12.5px;font-weight:650;color:var(--i600);margin-bottom:12px}
+.demo-row{display:flex;gap:8px;flex-wrap:wrap}
+
+/* 手机预览：正式代码没有这个机制（它靠上面的 @media 断点），
+   这里把 ≤919px / ≤640px / ≤559px 的断点结果复刻成 .phone 作用域下的规则。
+   注意必须写在本节（@media 之后），否则同权重的 .frame.narrow 会盖掉 max-width。 */
+.frame.phone{max-width:412px;height:780px;overflow:auto;padding:16px 14px 42px;border:10px solid var(--i900);border-radius:42px;box-shadow:var(--s3)}
+.frame.phone .grid{grid-template-columns:minmax(0,1fr);gap:20px}
+.frame.phone .col-b{position:static}
+.frame.phone .topbar{margin-bottom:20px;flex-wrap:wrap}
+.frame.phone .h1{font-size:22px}
+.frame.phone .head{margin-bottom:18px}
+.frame.phone .sub{font-size:13px}
+.frame.phone .card-bd{padding:16px;gap:16px}
+.frame.phone .card-bd.lg{padding:22px 18px}
+.frame.phone #md{min-height:186px}
+.frame.phone .mdv{min-height:186px}
+.frame.phone .m-only{display:inline-flex}
+.frame.phone .act{margin-top:14px}
+.frame.phone .btn.lg{padding:15px 22px}
+.frame.phone .band{display:none}
+.frame.phone .sts{grid-template-columns:1fr}
+
+@media (max-width:640px){
+  .proto-in{padding:9px 14px}
+  .proto-hide{display:none}
+}
+@media print{.proto{display:none}}
+</style>
+</head>
+<body>
+
+<!-- ========================= 图标 sprite（内联复用，不引图标库） ========================= -->
+<svg class="sprite" aria-hidden="true" focusable="false">
+  <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 2.6c2.6 3.1 4.5 5.5 4.5 8.6a4.5 4.5 0 0 1-9 0c0-1.3.4-2.3 1.1-3.3.3 1 .9 1.7 1.6 1.7.9 0 1.5-.8 1.5-2 0-1.6-.7-3.2-.7-5z"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7 3v5.6c0 4.2-3 7.5-7 9.1-4-1.6-7-4.9-7-9.1V6z"/><path d="M9 12l2.2 2.2L15.5 10"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9.5" rx="2.4"/><path d="M8.5 11V8.4a3.5 3.5 0 0 1 7 0V11"/><path d="M12 15v2"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.2"/><path d="M12 7.6V12l3.1 2"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.4 12S6 6.4 12 6.4 21.6 12 21.6 12 18 17.6 12 17.6 2.4 12 2.4 12z"/><circle cx="12" cy="12" r="2.6"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11.5" height="11.5" rx="2.4"/><path d="M15 5.5H6.5A2 2 0 0 0 4.5 7.5V16"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M4.5 12.6l4.8 4.8L19.5 7.2"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.8l9 16.4H3z"/><path d="M12 10v4.2M12 17h.01"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5.5v13M5.5 12h13"/></symbol>
+  <symbol id="i-img" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2.4"/><circle cx="9" cy="10" r="1.6"/><path d="M4.5 17l4.6-4.3 3.4 3 3-2.6 4 3.6"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.8 7h14.4M9.6 7V4.8h4.8V7M6.6 7l1 12.2h8.8L17.4 7"/></symbol>
+  <symbol id="i-bold" viewBox="0 0 24 24"><path d="M7.5 5h5.6a3.4 3.4 0 0 1 0 6.8H7.5z"/><path d="M7.5 11.8h6.2a3.6 3.6 0 0 1 0 7.2H7.5z"/></symbol>
+  <symbol id="i-italic" viewBox="0 0 24 24"><path d="M10.5 5h7M6.5 19h7M14 5l-4 14"/></symbol>
+  <symbol id="i-code" viewBox="0 0 24 24"><path d="M8.8 7.4L3.8 12l5 4.6M15.2 7.4l5 4.6-5 4.6"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10.2 13.8a4 4 0 0 0 5.7.4l2-2a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M13.8 10.2a4 4 0 0 0-5.7-.4l-2 2a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4.2 6h.01M4.2 12h.01M4.2 18h.01"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8.2" cy="15.2" r="4.2"/><path d="M11.2 12.2l8-8M16 4l3.4 3.4M13.8 6.2l3.4 3.4"/></symbol>
+  <symbol id="i-note" viewBox="0 0 24 24"><path d="M5 5.5h14v9.5l-4.6 4.5H5z"/><path d="M19 15h-4.6v4.5"/></symbol>
+</svg>
+
+<input class="sr" type="file" id="fileInput" accept="image/*" multiple tabindex="-1" aria-hidden="true">
+
+<!-- ========================= 设计稿外壳 ========================= -->
+<header class="proto">
+  <div class="proto-in">
+    <span class="tag">1tmsg UI v2</span>
+    <nav class="pnav" id="pnav">
+      <button type="button" data-go="create" aria-current="true">01 创建</button>
+      <button type="button" data-go="sent">02 已创建</button>
+      <button type="button" data-go="unlock">03 密码解锁</button>
+      <button type="button" data-go="read">04 查看内容</button>
+      <button type="button" data-go="states">05 异常与反馈</button>
+    </nav>
+    <span class="tag alt proto-hide">单文件 · 0 外部请求</span>
+    <button class="ptool" type="button" id="phoneToggle">手机预览</button>
+  </div>
+</header>
+
+<main>
+
+<!-- =====================================================================
+     01 创建 · 桌面两栏（左输入 / 右配置+创建），移动纵向心流 ①②③
+     对应 public/index.html 的 #createScreen
+     ===================================================================== -->
+<section class="screen is-on" id="s-create">
+<div class="frame">
+
+  <div class="topbar">
+    <div class="brand">
+      <span class="mark"><svg class="ico"><use href="#i-flame"/></svg></span>
+      <span>
+        <b class="bn">1tmsg</b>
+        <span class="bs">阅后即焚 · 端到端加密</span>
+      </span>
+    </div>
+    <span class="pill b band"><svg class="ico ico-13"><use href="#i-shield"/></svg>服务器看不到明文</span>
+  </div>
+
+  <div class="head">
+    <h1 class="h1">创建一条秘密消息</h1>
+    <p class="sub">内容在你的浏览器里加密，只有拿到链接（和密码）的人才打开得了；服务器只能保存一段看不懂的密文。</p>
+  </div>
+
+  <div class="grid">
+
+    <!-- ---------- 左：输入 ---------- -->
+    <div class="col-a">
+      <section class="card" id="editorCard">
+        <div class="card-hd">
+          <h2><span class="step m-only">1</span>消息内容</h2>
+          <div class="seg" id="mode">
+            <button type="button" data-mode="edit" aria-pressed="true">编辑</button>
+            <button type="button" data-mode="view" aria-pressed="false">预览</button>
+          </div>
+        </div>
+
+        <div class="card-bd">
+          <div>
+            <div class="field-hd">
+              <span class="lbl">备注<span class="optag">可选</span></span>
+              <span class="cnt">仅收件人可见</span>
+            </div>
+            <input class="in" id="note" maxlength="120" autocomplete="off" value="给你的那份文件 —— 看完就删，别截图转发。" placeholder="给收件人一句话，例如：给你的那份文件">
+          </div>
+
+          <div id="bodyField">
+            <div class="field-hd">
+              <span class="lbl">正文</span>
+              <span class="cnt"><span id="count">0</span>&nbsp;字 · Markdown</span>
+            </div>
+
+            <div class="editor">
+              <div class="mdtb">
+                <button class="tbtn" type="button" data-md="bold" title="加粗"><svg class="ico"><use href="#i-bold"/></svg></button>
+                <button class="tbtn" type="button" data-md="italic" title="斜体"><svg class="ico"><use href="#i-italic"/></svg></button>
+                <span class="sp"></span>
+                <button class="tbtn" type="button" data-md="list" title="列表"><svg class="ico"><use href="#i-list"/></svg></button>
+                <button class="tbtn" type="button" data-md="code" title="代码"><svg class="ico"><use href="#i-code"/></svg></button>
+                <button class="tbtn" type="button" data-md="link" title="链接"><svg class="ico"><use href="#i-link"/></svg></button>
+                <span class="sp"></span>
+                <button class="tbtn" type="button" id="pickImg" title="插入图片"><svg class="ico"><use href="#i-img"/></svg></button>
+                <span class="suffix">MD</span>
+              </div>
+              <textarea id="md" spellcheck="false" aria-label="消息正文" placeholder="# 标题&#10;&#10;正文支持 **Markdown**、列表、代码块，也可以直接粘贴或拖入图片。"># 季度复盘
+
+**要点**：这个季度我们把注册转化率从 3.1% 提到了 4.6%。
+
+## 做了什么
+- 引导流程从 5 步压缩到 3 步
+- 首屏加载时间降到 1.2s
+- 去掉了强制的邮箱验证
+
+> 结论：短流程比强制验证更能提升转化。
+
+```js
+const key = crypto.getRandomValues(new Uint8Array(32));
+```
+
+![截图-1.png](attachment://img-1)</textarea>
+              <div class="mdv md" id="pv" hidden></div>
+            </div>
+
+            <div class="atray" id="atray">
+              <!-- 这里的数值只是首屏兜底，mount 时会由 JS 按 config.ts 覆盖；
+                   历史上此处写的是改造前的 5MB / 10MB，与真实上限脱节。 -->
+              <span class="atip"><svg class="ico ico-15"><use href="#i-img"/></svg><span id="atipText">拖拽 / 粘贴 / 点图标插入图片，单张 ≤ 100MB，合计 ≤ 200MB，最多 8 张</span></span>
+              <div class="thumbs" id="thumbs">
+                <!-- 正式代码初始为空、由 editor.ts 的 thumbNode() 生成；
+                     这里放两张样本图，结构与生成结果逐字一致（.thumb > img + .x[data-remove]） -->
+                <span class="thumb" title="截图-1.png · 412 KB">
+                  <img src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20640%20360'%3E%3Cdefs%3E%3ClinearGradient%20id='g'%20x1='0'%20y1='0'%20x2='1'%20y2='1'%3E%3Cstop%20offset='0'%20stop-color='%23FCD9C4'/%3E%3Cstop%20offset='1'%20stop-color='%23F2A98A'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect%20width='640'%20height='360'%20fill='url(%23g)'/%3E%3C/svg%3E" alt="截图-1.png" decoding="async">
+                  <button class="x" type="button" data-remove="img-1" title="移除">×</button>
+                </span>
+                <span class="thumb" title="截图-2.png · 208 KB">
+                  <img src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20640%20360'%3E%3Cdefs%3E%3ClinearGradient%20id='g'%20x1='0'%20y1='0'%20x2='1'%20y2='1'%3E%3Cstop%20offset='0'%20stop-color='%23CFE0F5'/%3E%3Cstop%20offset='1'%20stop-color='%238FB2E0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect%20width='640'%20height='360'%20fill='url(%23g)'/%3E%3C/svg%3E" alt="截图-2.png" decoding="async">
+                  <button class="x" type="button" data-remove="img-2" title="移除">×</button>
+                </span>
+                <button class="tadd" type="button" title="添加图片"><svg class="ico ico-17"><use href="#i-plus"/></svg></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ---------- 右：配置 + 创建 ---------- -->
+    <aside class="col-b">
+
+      <section class="card">
+        <div class="card-hd">
+          <h2><span class="step m-only">2</span>查看与销毁</h2>
+        </div>
+
+        <div class="card-bd">
+          <div class="opt on" id="burnRow">
+            <span>
+              <b>阅后即焚</b>
+              <!-- 正式代码里为空，由 create.ts 的 setHint() 填；此处同样交给 JS　（无 JS 时无文案） -->
+              <span id="burnHint"></span>
+            </span>
+            <button class="sw" type="button" id="burn" role="switch" aria-checked="true" aria-label="阅后即焚"></button>
+          </div>
+
+          <div id="viewsField" hidden>
+            <div class="field-hd">
+              <span class="lbl">可查看次数</span>
+              <span class="cnt">1 – 100</span>
+            </div>
+            <div class="stepper">
+              <button type="button" data-step="-1" aria-label="减少">−</button>
+              <input id="views" value="5" inputmode="numeric" autocomplete="off" aria-label="可查看次数">
+              <button type="button" data-step="1" aria-label="增加">+</button>
+            </div>
+          </div>
+
+          <div>
+            <div class="field-hd">
+              <span class="lbl">过期时间</span>
+              <span class="cnt">最长 7 天</span>
+            </div>
+            <div class="chips" id="ttl">
+              <button type="button" data-ttl="3600" aria-pressed="true">1 小时</button>
+              <button type="button" data-ttl="21600" aria-pressed="false">6 小时</button>
+              <button type="button" data-ttl="43200" aria-pressed="false">12 小时</button>
+              <button type="button" data-ttl="86400" aria-pressed="false">1 天</button>
+              <button type="button" data-ttl="259200" aria-pressed="false">3 天</button>
+              <button type="button" data-ttl="604800" aria-pressed="false">7 天</button>
+            </div>
+          </div>
+
+          <div>
+            <div class="opt" id="pwRow">
+              <span>
+                <b>密码保护</b>
+                <span id="pwHint"></span>
+              </span>
+              <button class="sw" type="button" id="pw" role="switch" aria-checked="false" aria-label="密码保护"></button>
+            </div>
+            <div id="pwField" class="mt10" hidden>
+              <div class="wrap">
+                <input class="in" id="pwd" type="password" placeholder="设置一个密码（至少 6 位）" autocomplete="new-password">
+                <button class="eye" type="button" id="eye" aria-label="显示密码"><svg class="ico"><use href="#i-eye"/></svg></button>
+              </div>
+              <div class="str" data-s="0"><i></i><i></i><i></i><i></i></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 创建动作区：桌面上吸在右栏底部，移动端位于心流末端 -->
+      <div class="act">
+        <div class="sum" id="sum" aria-live="polite"></div>
+        <button class="btn pri lg block" type="button" id="create">
+          <svg class="ico"><use href="#i-flame"/></svg><span>创建并复制链接</span>
+        </button>
+        <p class="micro">
+          <svg class="ico ico-13"><use href="#i-lock"/></svg>
+          AES-256-GCM 本地加密，密钥不会离开你的浏览器
+        </p>
+      </div>
+
+    </aside>
+  </div>
+</div>
+</section>
+
+<!-- =====================================================================
+     02 已创建（分享）· 对应 public/index.html 的 #sentScreen
+     ===================================================================== -->
+<section class="screen" id="s-sent">
+<div class="frame narrow">
+  <section class="card">
+    <div class="card-bd lg">
+      <div class="center">
+        <div class="okico"><svg class="ico"><use href="#i-check"/></svg></div>
+        <h1 class="h1">消息已创建</h1>
+        <p class="sub center-block">把链接发给对方就好。链接中 <em>#</em> 后面那段是解密密钥，它只存在于链接里，不会被发送到服务器。</p>
+      </div>
+
+      <!-- 正式代码里 <code> 由 showSent() 填入：base(host+path) + <em>#fragment</em>，title 存完整链接 -->
+      <div class="linkbox">
+        <code id="sentLink" title="https://1tmsg.pages.dev/m/AbCdEf#v1.k7fQ2x9Mp">1tmsg.pages.dev/m/AbCdEf<em>#v1.k7fQ2x9Mp</em></code>
+        <button class="btn pri" type="button" id="sentCopy"><svg class="ico"><use href="#i-copy"/></svg><span>复制</span></button>
+      </div>
+
+      <div class="sts">
+        <div class="st">
+          <span class="stk"><svg class="ico"><use href="#i-flame"/></svg>阅后即焚</span>
+          <b class="stv" id="sentBurn">查看 1 次后销毁</b>
+        </div>
+        <div class="st">
+          <span class="stk"><svg class="ico"><use href="#i-clock"/></svg>过期时间</span>
+          <b class="stv" id="sentTtl">1 小时后失效</b>
+        </div>
+        <div class="st">
+          <span class="stk"><svg class="ico"><use href="#i-key"/></svg>解密密钥</span>
+          <b class="stv" id="sentKey">仅在链接里</b>
+        </div>
+      </div>
+
+      <div class="notice warn mt16">
+        <svg class="ico"><use href="#i-alert"/></svg>
+        <span>请通过可信渠道发送。<b>任何拿到链接的人都能查看这条消息</b>，链接转发后无法撤回。</span>
+      </div>
+
+      <div class="notice info mt10">
+        <svg class="ico"><use href="#i-shield"/></svg>
+        <span>服务器上只存了密文和过期时间。即使数据库泄露，也读不出你和对方说了什么。</span>
+      </div>
+
+      <button class="btn out block mt18" type="button" id="again">再创建一条</button>
+    </div>
+  </section>
+</div>
+</section>
+
+<!-- =====================================================================
+     03 密码解锁 · 对应 public/m.html 的 #stateUnlock
+     ===================================================================== -->
+<section class="screen" id="s-unlock">
+<div class="frame narrow">
+
+  <div class="topbar">
+    <div class="brand">
+      <span class="mark"><svg class="ico"><use href="#i-flame"/></svg></span>
+      <span>
+        <b class="bn">1tmsg</b>
+        <span class="bs">阅后即焚 · 端到端加密</span>
+      </span>
+    </div>
+    <span class="pill n"><svg class="ico ico-13"><use href="#i-lock"/></svg>密文仅在本地解密</span>
+  </div>
+
+  <section class="card" id="stateUnlock">
+    <div class="card-bd lg">
+      <div class="center">
+        <div class="lockico"><svg class="ico"><use href="#i-lock"/></svg></div>
+        <h1 class="h1">这条消息受密码保护</h1>
+        <p class="sub center-block">输入发送者给你的密码。密码不会发送到服务器，验证与解密都在你的浏览器里完成。</p>
+      </div>
+
+      <div class="mt22">
+        <div class="field-hd">
+          <span class="lbl">密码</span>
+          <span class="cnt">解密成功后才会计入查看次数</span>
+        </div>
+        <div class="wrap">
+          <input class="in" id="pwd2" type="password" placeholder="输入密码" autocomplete="off">
+          <button class="eye" type="button" id="eye2" aria-label="显示密码"><svg class="ico"><use href="#i-eye"/></svg></button>
+        </div>
+      </div>
+
+      <p class="notice dan mt14" id="unlockError" hidden></p>
+
+      <button class="btn pri lg block mt14" type="button" id="unlockBtn">
+        <svg class="ico"><use href="#i-lock"/></svg><span>解密并查看</span>
+      </button>
+
+      <div class="notice warn mt14">
+        <svg class="ico"><use href="#i-alert"/></svg>
+        <span>密码错误不会消耗查看次数；<b>只有解密成功那一次才算</b>。</span>
+      </div>
+
+      <p class="micro mt14">
+        <svg class="ico ico-13"><use href="#i-shield"/></svg>
+        PBKDF2 → HKDF → AES-256-GCM，全程本地执行
+      </p>
+    </div>
+  </section>
+</div>
+</section>
+
+<!-- =====================================================================
+     04 查看内容 · 对应 public/m.html 的 #stateRead
+     本稿演示「阅后即焚已被销毁」这一默认路径（badge = 阅后即焚 · 已销毁，.rdone 可见）。
+     非焚毁消息（关闭阅后即焚）时 badge 为「已在本地解密 · 还可查看 N 次」，并隐藏 .rdone。
+     ===================================================================== -->
+<section class="screen" id="s-read">
+<div class="frame narrow">
+
+  <div class="topbar">
+    <div class="brand">
+      <span class="mark"><svg class="ico"><use href="#i-flame"/></svg></span>
+      <span>
+        <b class="bn">1tmsg</b>
+        <span class="bs">阅后即焚 · 端到端加密</span>
+      </span>
+    </div>
+    <span class="pill n"><svg class="ico ico-13"><use href="#i-lock"/></svg>密文仅在本地解密</span>
+  </div>
+
+  <section class="card" id="stateRead">
+    <div class="rbar">
+      <span class="pill b"><svg class="ico ico-13"><use href="#i-lock"/></svg><span id="readBadgeText">阅后即焚 · 已销毁</span></span>
+      <span class="rgroup">
+        <!-- #readExpiry 由 startCountdown() 每秒写入，值形如「53:12 后失效」 -->
+        <span class="cnt"><svg class="ico ico-13"><use href="#i-clock"/></svg><span id="readExpiry">53:12 后失效</span></span>
+        <button class="cpbtn" type="button" id="copyTop" aria-label="复制全部内容">
+          <svg class="ico ico-13"><use href="#i-copy"/></svg><span>复制</span>
+        </button>
+      </span>
+    </div>
+
+    <div class="card-bd">
+      <div class="note" id="noteBox">
+        <svg class="ico"><use href="#i-note"/></svg>
+        <span id="noteText">给你的那份文件 —— 看完就删，别截图转发。</span>
+      </div>
+      <!-- 正文由 renderMarkdown() + hydrateMarkdown() 产出；此处按真实输出结构手写，
+           用来压力测试 .md 的排版（标题 / 列表 / 引用 / 代码块 / 表格 / 图片 / 链接 / 阻止占位） -->
+      <div class="md" id="readBody">
+        <h1>季度复盘</h1>
+        <p><strong>要点</strong>：这个季度我们把注册转化率从 3.1% 提到了 4.6%。</p>
+        <h2>做了什么</h2>
+        <ul>
+          <li>引导流程从 5 步压缩到 3 步</li>
+          <li>首屏加载时间降到 <code>1.2s</code></li>
+          <li>去掉了强制的邮箱验证</li>
+        </ul>
+        <blockquote><p>结论：短流程比强制验证更能提升转化。</p></blockquote>
+        <pre><code>const key = crypto.getRandomValues(new Uint8Array(32));</code></pre>
+        <hr>
+        <figure>
+          <img src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20640%20360'%3E%3Cdefs%3E%3ClinearGradient%20id='g'%20x1='0'%20y1='0'%20x2='1'%20y2='1'%3E%3Cstop%20offset='0'%20stop-color='%23FCD9C4'/%3E%3Cstop%20offset='1'%20stop-color='%23F2A98A'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect%20width='640'%20height='360'%20fill='url(%23g)'/%3E%3C/svg%3E" alt="截图-1.png">
+          <figcaption>截图-1.png · 解密后落地成 blob: URL，不进 innerHTML</figcaption>
+        </figure>
+        <div class="md-scroll">
+          <table>
+            <thead>
+              <tr><th>指标</th><th>改造前</th><th>改造后</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>注册转化率</td><td>3.1%</td><td>4.6%</td></tr>
+              <tr><td>首屏加载</td><td>2.8s</td><td>1.2s</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p><span class="imgblocked"><svg class="ico ico-13"><use href="#i-img"/></svg>外部图片已阻止</span></p>
+        <p>相关说明见 <a href="#">内部文档</a>，已作废的 <del>旧流程</del> 不再维护。</p>
+      </div>
+      <button class="btn out block" type="button" id="copyBottom">
+        <svg class="ico"><use href="#i-copy"/></svg><span>复制全部内容</span>
+      </button>
+    </div>
+
+    <div class="rdone" id="readDone">
+      <svg class="ico"><use href="#i-trash"/></svg>
+      <span>这是一条阅后即焚消息，服务器上的密文<b>已经删除</b>。请不要关闭或刷新页面，否则内容无法再次打开。</span>
+    </div>
+
+    <div class="cta">
+      <p class="ctat">也想安全地发一条？</p>
+      <a class="btn pri block" href="#" data-goto="create">
+        <svg class="ico"><use href="#i-flame"/></svg><span>我也要创建一条</span>
+      </a>
+      <p class="micro">
+        <svg class="ico ico-13"><use href="#i-shield"/></svg>
+        无需注册 · 内容只在浏览器加解密 · 打开一次即销毁
+      </p>
+    </div>
+  </section>
+</div>
+</section>
+
+<!-- =====================================================================
+     05 异常与反馈 · 对应 public/m.html 的 #stateLoading / #stateFatal，
+     以及 ui.ts 的 toast() / showProgress()
+     ===================================================================== -->
+<section class="screen" id="s-states">
+<div class="frame narrow">
+  <div class="stack">
+
+    <!-- 加载中 -->
+    <section class="card" id="stateLoading" aria-live="polite">
+      <div class="card-bd lg">
+        <div class="center">
+          <div class="spin" role="presentation"></div>
+          <h1 class="h1" id="loadingTitle">正在准备解密</h1>
+          <p class="sub center-block" id="loadingBody">读取链接里的密钥，并向服务器确认这条消息的状态。</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 无法打开 -->
+    <section class="card" id="stateFatal">
+      <div class="card-bd lg">
+        <div class="center">
+          <div class="fatalico"><svg class="ico"><use href="#i-alert"/></svg></div>
+          <h1 class="h1" id="fatalTitle">无法打开这条消息</h1>
+          <p class="sub center-block" id="fatalBody">它已超过设定的过期时间，服务器上的密文已被删除。</p>
+        </div>
+        <div class="notice info mt18">
+          <svg class="ico"><use href="#i-shield"/></svg>
+          <span>解密密钥只存在于原始链接的 <b>#</b> 之后。服务器从未见过它，因此也无法帮你恢复被截断的链接。</span>
+        </div>
+        <a class="btn out block mt18" href="#" data-goto="create">创建一条新消息</a>
+      </div>
+    </section>
+
+    <!-- Toast / 进度弹窗：真实组件真实定位（fixed），点按钮触发 -->
+    <div class="stage">
+      <p class="stage-hd">Toast（左下角自动消失，3.6s）· 进度弹窗（阻塞式，创建流程中显示）</p>
+      <div class="demo-row">
+        <button class="btn out" type="button" id="demoToast">普通提示</button>
+        <button class="btn out" type="button" id="demoToastErr">错误提示</button>
+        <button class="btn out" type="button" id="demoProgress">进度弹窗</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+</section>
+
+</main>
+
+<script>
+/* ---------------------------------------------------------------------------
+   演示脚本。所有文案与阈值都照抄正式代码（src/client/create.ts、ui.ts、
+   editor.ts、markdown.ts、config.ts），改动时请一并改那边。
+--------------------------------------------------------------------------- */
+
+/* ===== config.ts 的常量（只抄本演示用得到的） ===== */
+const MB = 1024 * 1024;
+const MAX_ATTACHMENT_BYTES = 100 * MB;
+const MAX_TOTAL_ATTACHMENT_BYTES = 200 * MB;
+const MAX_ATTACHMENTS = 8;
+const MAX_NOTE_LENGTH = 120;
+const MIN_PASSWORD_LENGTH = 6;
+const MIN_VIEWS = 1;
+const MAX_VIEWS = 100;
+const DEFAULT_TTL_SECONDS = 3600;
+const TTL_PRESETS = [
+  { label: '1 小时', seconds: 3600 },
+  { label: '6 小时', seconds: 21600 },
+  { label: '12 小时', seconds: 43200 },
+  { label: '1 天', seconds: 86400 },
+  { label: '3 天', seconds: 259200 },
+  { label: '7 天', seconds: 604800 },
+];
+
+/* ===== 小工具（同 ui.ts 的 el / maybe / show / setText） ===== */
+const el = (id) => {
+  const node = document.getElementById(id);
+  if (!node) throw new Error('missing element #' + id);
+  return node;
+};
+const maybe = (id) => document.getElementById(id);
+const show = (node, visible) => { node.hidden = !visible; };
+const setText = (id, text) => { const n = maybe(id); if (n) n.textContent = text; };
+
+/* ===== ui.ts: ttlLabel / humanTtl ===== */
+function ttlLabel(seconds) {
+  if (seconds % 86400 === 0) return seconds / 86400 + ' 天';
+  if (seconds % 3600 === 0) return seconds / 3600 + ' 小时';
+  if (seconds % 60 === 0) return seconds / 60 + ' 分钟';
+  return seconds + ' 秒';
+}
+function humanTtl(seconds) {
+  if (seconds % 86400 === 0) return seconds / 86400 + ' 天后失效';
+  if (seconds % 3600 === 0) return seconds / 3600 + ' 小时后失效';
+  if (seconds % 60 === 0) return seconds / 60 + ' 分钟后失效';
+  return seconds + ' 秒后失效';
+}
+
+/* ===== ui.ts: toast / showProgress / hideProgress ===== */
+let toastTimer;
+function toast(message, kind = 'info') {
+  let node = document.querySelector('.toast');
+  if (!node) {
+    node = document.createElement('div');
+    node.className = 'toast';
+    node.setAttribute('role', 'status');
+    node.setAttribute('aria-live', 'polite');
+    document.body.append(node);
+  }
+  node.textContent = message;
+  node.classList.toggle('err', kind === 'error');
+  node.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => node.classList.remove('on'), 3600);
+}
+let overlay = null;
+let wantVisible = false;
+function showProgress(message) {
+  wantVisible = true;
+  if (!overlay || !overlay.root.isConnected) {
+    const root = document.createElement('div');
+    root.className = 'modal';
+    root.setAttribute('role', 'status');
+    root.setAttribute('aria-live', 'polite');
+    root.setAttribute('aria-busy', 'true');
+    const box = document.createElement('div');
+    box.className = 'modal-bd';
+    const spin = document.createElement('div');
+    spin.className = 'spin';
+    spin.setAttribute('role', 'presentation');
+    const text = document.createElement('p');
+    text.className = 'modal-tx';
+    box.append(spin, text);
+    root.append(box);
+    document.body.append(root);
+    overlay = { root, text };
+    // 先落地透明态，下一帧再上 .on —— 否则首次插入时浏览器不会补间
+    requestAnimationFrame(() => { if (wantVisible) root.classList.add('on'); });
+  } else {
+    overlay.root.classList.add('on');
+  }
+  overlay.text.textContent = message;
+}
+function hideProgress() {
+  wantVisible = false;
+  overlay?.root.classList.remove('on');
+}
+
+/* ===== ui.ts: setBusy ===== */
+function setBusy(button, busy, label) {
+  button.disabled = busy;
+  button.setAttribute('aria-busy', String(busy));
+  const span = button.querySelector('span');
+  if (!span) return;
+  if (busy) {
+    if (button.dataset.idleLabel === undefined) button.dataset.idleLabel = span.textContent ?? '';
+    if (label !== undefined) span.textContent = label;
+    return;
+  }
+  if (button.dataset.idleLabel !== undefined) {
+    span.textContent = button.dataset.idleLabel;
+    delete button.dataset.idleLabel;
+  }
+}
+
+/* ===== ui.ts: copyText ===== */
+let copySource = '';
+async function copyText(text) {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch { /* 退回到 execCommand */ }
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.className = 'sr';
+    document.body.append(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    ta.remove();
+    return ok;
+  } catch { return false; }
+}
+
+/* ===== markdown.ts 的精简替身：先转义、再解析、最后 hydrate =====
+   正式实现是 marked + DOMPurify，且刻意不把 src 写进 innerHTML；
+   这里只为了演示排版与附件映射，安全策略不在此复现。 */
+const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
+const esc = (s) => s.replace(/[&<>"]/g, (c) => ESC[c]);
+const DEMO_IMG = {
+  'img-1': "data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20640%20360'%3E%3Cdefs%3E%3ClinearGradient%20id='g'%20x1='0'%20y1='0'%20x2='1'%20y2='1'%3E%3Cstop%20offset='0'%20stop-color='%23FCD9C4'/%3E%3Cstop%20offset='1'%20stop-color='%23F2A98A'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect%20width='640'%20height='360'%20fill='url(%23g)'/%3E%3C/svg%3E",
+  'img-2': "data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20640%20360'%3E%3Cdefs%3E%3ClinearGradient%20id='g'%20x1='0'%20y1='0'%20x2='1'%20y2='1'%3E%3Cstop%20offset='0'%20stop-color='%23CFE0F5'/%3E%3Cstop%20offset='1'%20stop-color='%238FB2E0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect%20width='640'%20height='360'%20fill='url(%23g)'/%3E%3C/svg%3E",
+};
+/* 附件引用 → 真实 <img>（正式代码在 hydrateMarkdown 阶段用 blob: URL 补 src） */
+const inline = (s) => s
+  .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+  .replace(/`([^`]+)`/g, '<code>$1</code>')
+  .replace(/!\[([^\]]*)\]\(attachment:\/\/([A-Za-z0-9_-]{1,64})\)/g, (_m, alt, id) =>
+    DEMO_IMG[id] ? '<img src="' + DEMO_IMG[id] + '" alt="' + alt + '">' : '<span class="imgblocked">图片缺失 · ' + (alt || id) + '</span>')
+  .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_m, alt) => '<span class="imgblocked">外部图片已阻止</span>');
+function md(src) {
+  const L = esc(src).split('\n');
+  let out = '', code = false, list = false, quote = false;
+  const shut = () => { if (list) { out += '</ul>'; list = false; } if (quote) { out += '</blockquote>'; quote = false; } };
+  for (const t of L) {
+    if (t.slice(0, 3) === '```') { shut(); out += code ? '</code></pre>' : '<pre><code>'; code = !code; continue; }
+    if (code) { out += t + '\n'; continue; }
+    if (/^#{1,2} /.test(t)) { shut(); const g = t.match(/^(#{1,2}) /); const tag = g[1].length === 1 ? 'h2' : 'h3'; out += '<' + tag + '>' + inline(t.slice(g[0].length)) + '</' + tag + '>'; continue; }
+    if (/^&gt; /.test(t)) { if (list) { out += '</ul>'; list = false; } if (!quote) { out += '<blockquote>'; quote = true; } out += '<p>' + inline(t.slice(5)) + '</p>'; continue; }
+    if (/^[-*] /.test(t)) { if (quote) { out += '</blockquote>'; quote = false; } if (!list) { out += '<ul>'; list = true; } out += '<li>' + inline(t.slice(2)) + '</li>'; continue; }
+    if (!t.trim()) { shut(); continue; }
+    shut(); out += '<p>' + inline(t) + '</p>';
+  }
+  shut(); if (code) out += '</code></pre>';
+  return out;
+}
+
+/* ===== 屏幕切换（外壳功能） ===== */
+const pnav = el('pnav');
+pnav.addEventListener('click', (e) => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  [...pnav.children].forEach((x) => x.removeAttribute('aria-current'));
+  b.setAttribute('aria-current', 'true');
+  document.querySelectorAll('.screen').forEach((s) => s.classList.toggle('is-on', s.id === 's-' + b.dataset.go));
+  scrollTo({ top: 0, behavior: 'smooth' });
+});
+/* 页内的「创建一条新消息 / 我也要创建一条」在外壳里只是切屏 */
+document.addEventListener('click', (e) => {
+  const link = e.target.closest('[data-goto]');
+  if (!link) return;
+  e.preventDefault();
+  const target = [...pnav.children].find((b) => b.dataset.go === link.dataset.goto);
+  target?.click();
+});
+
+/* ===== 编辑器（editor.ts 的精简替身） ===== */
+const mdEl = el('md'), pv = el('pv'), count = el('count');
+const bodyField = el('bodyField'), thumbs = el('thumbs'), tray = el('atray');
+const fileInput = el('fileInput'), editorCard = el('editorCard');
+let caret = 0, previewing = false, seq = 2;
+
+const tips = maybe('atipText');
+if (tips) {
+  tips.textContent =
+    '拖拽 / 粘贴 / 点图标插入图片，单张 ≤ ' + Math.round(MAX_ATTACHMENT_BYTES / MB) + 'MB，' +
+    '合计 ≤ ' + Math.round(MAX_TOTAL_ATTACHMENT_BYTES / MB) + 'MB，最多 ' + MAX_ATTACHMENTS + ' 张';
+}
+
+const thumbCount = () => thumbs.querySelectorAll('.thumb').length;
+const syncCount = () => { count.textContent = String(mdEl.value.length); };
+function refreshPreview() {
+  pv.innerHTML = md(mdEl.value);
+  syncCount();
+}
+function setPreview(on) {
+  previewing = on;
+  bodyField.classList.toggle('previewing', on);
+  mdEl.hidden = on;
+  pv.hidden = !on;
+  if (on) refreshPreview();
+}
+
+el('mode').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-mode]');
+  if (!b) return;
+  [...el('mode').children].forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+  setPreview(b.dataset.mode === 'view');
+});
+
+mdEl.addEventListener('input', () => {
+  caret = mdEl.selectionStart;
+  syncCount();
+  if (previewing) refreshPreview();
+});
+for (const ev of ['keyup', 'click', 'select']) {
+  mdEl.addEventListener(ev, () => { caret = mdEl.selectionStart; });
+}
+
+/* 工具栏：WRAP 表与 editor.ts 一致 */
+const WRAP = {
+  bold: ['**', '**', '加粗文字'],
+  italic: ['*', '*', '斜体文字'],
+  code: ['`', '`', 'code'],
+  link: ['[', '](https://)', '链接文字'],
+};
+function replaceRange(start, end, text, nextCaret) {
+  const v = mdEl.value;
+  mdEl.value = v.slice(0, start) + text + v.slice(end);
+  mdEl.focus();
+  mdEl.setSelectionRange(nextCaret, nextCaret);
+  caret = nextCaret;
+  syncCount();
+  if (previewing) refreshPreview();
+}
+for (const btn of document.querySelectorAll('.mdtb [data-md]')) {
+  btn.addEventListener('click', () => {
+    const action = btn.dataset.md;
+    const start = mdEl.selectionStart, end = mdEl.selectionEnd;
+    const selected = mdEl.value.slice(start, end);
+    if (action === 'list') {
+      const block = (selected || '列表项').split('\n').map((line) => '- ' + line).join('\n');
+      replaceRange(start, end, block, start + block.length);
+      return;
+    }
+    const spec = WRAP[action];
+    if (!spec) return;
+    const [prefix, suffix, placeholder] = spec;
+    const inner = selected || placeholder;
+    const text = prefix + inner + suffix;
+    replaceRange(start, end, text, start + prefix.length + inner.length);
+  });
+}
+function insertAtCaret(text) {
+  const at = Math.min(caret, mdEl.value.length);
+  const prefix = at > 0 && mdEl.value[at - 1] !== '\n' ? '\n' : '';
+  const block = prefix + text;
+  replaceRange(at, at, block, at + block.length);
+}
+
+/* 选图入口：工具栏图标 + 托盘「+」 */
+maybe('pickImg')?.addEventListener('click', () => fileInput.click());
+thumbs.addEventListener('click', (e) => {
+  const remove = e.target.closest('[data-remove]');
+  if (remove?.dataset.remove) { removeAttachment(remove.dataset.remove); return; }
+  if (e.target.closest('.tadd')) fileInput.click();
+});
+fileInput.addEventListener('change', () => {
+  if (fileInput.files && fileInput.files.length > 0) addFiles(fileInput.files);
+  fileInput.value = '';
+});
+/* 拖拽：托盘高亮 + 整卡接收 */
+for (const ev of ['dragenter', 'dragover']) {
+  editorCard.addEventListener(ev, (e) => { e.preventDefault(); tray.classList.add('hot'); });
+}
+for (const ev of ['dragleave', 'dragend']) {
+  editorCard.addEventListener(ev, () => tray.classList.remove('hot'));
+}
+editorCard.addEventListener('drop', (e) => {
+  e.preventDefault();
+  tray.classList.remove('hot');
+  const files = e.dataTransfer?.files;
+  if (files && files.length > 0) addFiles(files);
+});
+/* Cmd/Ctrl + V 粘贴图片 */
+document.addEventListener('paste', (e) => {
+  const dt = e.clipboardData;
+  if (!dt) return;
+  const files = [...(dt.items ?? [])]
+    .filter((it) => it.kind === 'file' && it.type.startsWith('image/'))
+    .map((it) => it.getAsFile())
+    .filter(Boolean);
+  if (files.length === 0) return;
+  e.preventDefault();
+  addFiles(files);
+});
+
+function addButton() { return thumbs.querySelector('.tadd'); }
+function thumbNode(id, name, size, url) {
+  const wrap = document.createElement('span');
+  wrap.className = 'thumb';
+  wrap.title = name + ' · ' + formatBytes(size);
+  const img = document.createElement('img');
+  img.src = url;
+  img.alt = name;
+  img.decoding = 'async';
+  const remove = document.createElement('button');
+  remove.className = 'x';
+  remove.type = 'button';
+  remove.title = '移除';
+  remove.dataset.remove = id;
+  remove.textContent = '×';
+  wrap.append(img, remove);
+  return wrap;
+}
+function formatBytes(n) {
+  if (n < 1024) return n + ' B';
+  if (n < MB) return (n / 1024).toFixed(1) + ' KB';
+  return (n / MB).toFixed(1) + ' MB';
+}
+function addFiles(files) {
+  const images = [...files].filter((f) => f.type.startsWith('image/'));
+  if (images.length === 0) { toast('只支持图片文件', 'error'); return; }
+  const rejected = [];
+  let accepted = 0;
+  for (const file of images) {
+    if (thumbCount() >= MAX_ATTACHMENTS) { rejected.push('最多 ' + MAX_ATTACHMENTS + ' 张图片'); break; }
+    if (file.size > MAX_ATTACHMENT_BYTES) { rejected.push(file.name + ' 超过 ' + formatBytes(MAX_ATTACHMENT_BYTES)); continue; }
+    seq += 1;
+    const id = 'img-' + seq;
+    const name = file.name || '图片-' + seq;
+    thumbs.insertBefore(thumbNode(id, name, file.size, URL.createObjectURL(file)), addButton());
+    insertAtCaret('![' + name + '](attachment://' + id + ')\n');
+    accepted += 1;
+  }
+  if (rejected.length > 0) toast(rejected[0], 'error');
+  else if (accepted > 0) toast('已插入 ' + accepted + ' 张图片');
+}
+function removeAttachment(id) {
+  const node = thumbs.querySelector('[data-remove="' + id + '"]')?.closest('.thumb');
+  node?.remove();
+  const pattern = new RegExp('!\\[[^\\]]*\\]\\(attachment://' + id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\)\\n?', 'g');
+  mdEl.value = mdEl.value.replace(pattern, '');
+  syncCount();
+  if (previewing) refreshPreview();
+}
+
+/* ===== 配置联动（create.ts） ===== */
+const burnSwitch = el('burn'), burnRow = el('burnRow'), burnHint = el('burnHint');
+const pwSwitch = el('pw'), pwRow = el('pwRow'), pwHint = el('pwHint'), pwField = el('pwField');
+const viewsField = el('viewsField'), viewsInput = el('views'), ttlChips = el('ttl');
+const pwInput = el('pwd'), strength = document.querySelector('.str'), summary = el('sum');
+let ttlSeconds = DEFAULT_TTL_SECONDS;
+
+const isOn = (node) => node.getAttribute('aria-checked') === 'true';
+
+function setHint(node, main, mut) {
+  node.replaceChildren(document.createTextNode(main));
+  if (mut) {
+    const mutSpan = document.createElement('span');
+    mutSpan.className = 'mut';
+    mutSpan.textContent = mut;
+    node.append(mutSpan);
+  }
+}
+function clampViews(raw) {
+  const n = Number.parseInt(raw, 10);
+  if (!Number.isFinite(n)) return MIN_VIEWS;
+  return Math.min(MAX_VIEWS, Math.max(MIN_VIEWS, n));
+}
+function ttlLabelText() {
+  const preset = TTL_PRESETS.find((p) => p.seconds === ttlSeconds);
+  return preset?.label ?? ttlSeconds + ' 秒';
+}
+function renderSummary() {
+  const rows = [
+    ['自动失效', ttlLabelText() + '后'],
+    isOn(burnSwitch) ? ['阅后即焚', '查看 1 次后删除'] : ['可查看', '最多 ' + clampViews(viewsInput.value) + ' 次'],
+  ];
+  if (isOn(pwSwitch)) rows.push(['密码保护', '需要密码解密']);
+  summary.replaceChildren(...rows.map(([k, v]) => {
+    const row = document.createElement('span');
+    row.className = 'srow';
+    const key = document.createElement('span');
+    key.className = 'k';
+    key.textContent = k;
+    const value = document.createElement('span');
+    value.className = 'v';
+    value.textContent = v;
+    row.append(key, value);
+    return row;
+  }));
+}
+function bindSwitch(node, row, onFlip) {
+  node.addEventListener('click', () => {
+    const next = !isOn(node);
+    node.setAttribute('aria-checked', String(next));
+    row.classList.toggle('on', next);
+    onFlip(next);
+    renderSummary();
+  });
+}
+bindSwitch(burnSwitch, burnRow, (on) => {
+  show(viewsField, !on);
+  setHint(burnHint, on ? '被查看一次后立即从服务器删除' : '已关闭，查看次数可在下方自定义', on ? '关闭后可自定义查看次数' : '');
+});
+bindSwitch(pwSwitch, pwRow, (on) => {
+  show(pwField, on);
+  setHint(pwHint, on ? '需要链接 + 密码才能解密' : '未开启，只凭链接即可打开', on ? '关闭后只凭链接即可打开' : '开启后需要密码才能解密');
+});
+setHint(burnHint, '被查看一次后立即从服务器删除', '关闭后可自定义查看次数');
+setHint(pwHint, '未开启，只凭链接即可打开', '开启后需要密码才能解密');
+show(viewsField, false);
+show(pwField, false);
+
+ttlChips.addEventListener('click', (e) => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  ttlSeconds = Number(b.dataset.ttl ?? DEFAULT_TTL_SECONDS);
+  [...ttlChips.children].forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+  renderSummary();
+});
+for (const b of document.querySelectorAll('[data-step]')) {
+  b.addEventListener('click', () => {
+    viewsInput.value = String(clampViews(String((Number.parseInt(viewsInput.value, 10) || 1) + Number(b.dataset.step ?? '1'))));
+    renderSummary();
+  });
+}
+viewsInput.addEventListener('input', () => {
+  viewsInput.value = viewsInput.value.replace(/[^\d]/g, '').slice(0, 3);
+  renderSummary();
+});
+viewsInput.addEventListener('blur', () => {
+  viewsInput.value = String(clampViews(viewsInput.value));
+  renderSummary();
+});
+
+/* 密码强度 + 显示密码 */
+pwInput.addEventListener('input', () => {
+  const v = pwInput.value;
+  let score = 0;
+  if (v.length >= 6) score = 1;
+  if (v.length >= 10 && /\d/.test(v)) score = 2;
+  if (v.length >= 12 && /[^A-Za-z0-9]/.test(v)) score = 3;
+  if (v.length >= 14 && /[A-Z]/.test(v) && /\d/.test(v) && /[^A-Za-z0-9]/.test(v)) score = 4;
+  strength?.setAttribute('data-s', String(score));
+});
+for (const [b, i] of [['eye', 'pwd'], ['eye2', 'pwd2']]) {
+  const btn = maybe(b), inp = maybe(i);
+  btn?.addEventListener('click', () => {
+    const visible = inp.type === 'text';
+    inp.type = visible ? 'password' : 'text';
+    btn.setAttribute('aria-label', visible ? '显示密码' : '隐藏密码');
+  });
+}
+const noteInput = el('note');
+noteInput.maxLength = MAX_NOTE_LENGTH;
+noteInput.addEventListener('input', () => {
+  if (noteInput.value.length >= MAX_NOTE_LENGTH) noteInput.value = noteInput.value.slice(0, MAX_NOTE_LENGTH);
+});
+
+renderSummary();
+syncCount();
+
+/* ===== 创建（走一遍真实的三段进度文案） ===== */
+const createBtn = el('create');
+createBtn.addEventListener('click', () => {
+  if (createBtn.disabled) return;
+  if (noteInput.value.trim().length === 0 && mdEl.value.trim().length === 0 && thumbCount() === 0) {
+    toast('至少写点什么再创建', 'error');
+    noteInput.focus();
+    return;
+  }
+  if (isOn(pwSwitch) && pwInput.value.length < MIN_PASSWORD_LENGTH) {
+    toast('密码至少 ' + MIN_PASSWORD_LENGTH + ' 位', 'error');
+    pwInput.focus();
+    return;
+  }
+  const burn = isOn(burnSwitch);
+  const views = burn ? 1 : clampViews(viewsInput.value);
+  const withPassword = isOn(pwSwitch);
+
+  setBusy(createBtn, true);
+  showProgress('正在本地加密…');
+  const n = thumbCount();
+  const steps = n > 0 ? [1, 2, 3] : [1, 2];
+  let i = 0;
+  const tick = () => {
+    i += 1;
+    if (i >= steps.length) {
+      hideProgress();
+      // 对应 showSent()：填入链接与三条状态，然后切到 02
+      setText('sentBurn', '查看 ' + views + ' 次后销毁');
+      setText('sentTtl', humanTtl(ttlSeconds));
+      setText('sentKey', withPassword ? '链接 + 密码' : '仅在链接里');
+      [...pnav.children].find((b) => b.dataset.go === 'sent')?.click();
+      setBusy(createBtn, false);
+      return;
+    }
+    showProgress(i === 1 && n > 0 ? '正在上传图片 1/' + n + '…' : '正在确认…');
+    setTimeout(tick, 900);
+  };
+  setTimeout(tick, 900);
+});
+
+/* ===== 已创建：复制（create.ts 的 sentCopy） ===== */
+el('sentCopy').addEventListener('click', async (e) => {
+  const button = e.currentTarget;
+  const link = el('sentLink').title;
+  const ok = await copyText(link);
+  const label = button.querySelector('span');
+  if (label) label.textContent = ok ? '已复制' : '复制失败';
+  setTimeout(() => { if (label) label.textContent = '复制'; }, 1800);
+});
+/* 正式代码里是 location.assign('/')（回到干净的创建页）；外壳里等价于切回 01 */
+el('again').addEventListener('click', () => {
+  [...pnav.children].find((b) => b.dataset.go === 'create')?.click();
+});
+
+/* ===== 查看页：头部 chip 与尾部大按钮共用一份明文（view.ts 的 bindCopy） ===== */
+copySource = [maybe('noteText')?.textContent ?? '', maybe('readBody')?.textContent ?? '']
+  .filter((p) => p.trim().length > 0).join('\n\n').trim();
+function bindCopy(button, idleLabel) {
+  let timer;
+  button.addEventListener('click', async () => {
+    if (!(await copyText(copySource))) { toast('复制失败，请手动选中内容复制', 'error'); return; }
+    toast('已复制全部内容');
+    const span = button.querySelector('span');
+    if (!span) return;
+    clearTimeout(timer);
+    span.textContent = '已复制';
+    button.classList.add('ok');
+    timer = setTimeout(() => { span.textContent = idleLabel; button.classList.remove('ok'); }, 1600);
+  });
+}
+bindCopy(el('copyTop'), '复制');
+bindCopy(el('copyBottom'), '复制全部内容');
+
+/* ===== 解锁（view.ts 的 submitPassword，只演示校验分支） ===== */
+const pwd2 = el('pwd2'), unlockBtn = el('unlockBtn'), unlockError = maybe('unlockError');
+function submitPassword() {
+  if (unlockBtn.disabled) return;
+  if (pwd2.value.length === 0) {
+    if (unlockError) { unlockError.textContent = '请输入密码'; show(unlockError, true); }
+    pwd2.focus();
+    return;
+  }
+  if (unlockError) show(unlockError, false);
+  setBusy(unlockBtn, true, '正在本地解密…');
+  setTimeout(() => {
+    setBusy(unlockBtn, false);
+    if (pwd2.value.length < MIN_PASSWORD_LENGTH) {
+      if (unlockError) { unlockError.textContent = '密码不正确，请重试'; show(unlockError, true); }
+      pwd2.select();
+      return;
+    }
+    [...pnav.children].find((b) => b.dataset.go === 'read')?.click();
+    // 对应 view.ts render()：badge 按 destroyed / remaining 写文案
+    setText('readBadgeText', '阅后即焚 · 已销毁');
+  }, 900);
+}
+unlockBtn.addEventListener('click', submitPassword);
+pwd2.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitPassword(); });
+
+/* ===== 05 的组件触发按钮 ===== */
+el('demoToast').addEventListener('click', () => toast('已复制全部内容'));
+el('demoToastErr').addEventListener('click', () => toast('密码至少 6 位', 'error'));
+el('demoProgress').addEventListener('click', () => {
+  showProgress('正在上传图片 1/3…');
+  setTimeout(hideProgress, 1600);
+});
+
+/* ===== 手机预览（外壳功能；用 .phone 复刻 @media 断点，见样式第 13 节） ===== */
+const pnavPhone = el('phoneToggle');
+pnavPhone.addEventListener('click', () => {
+  const on = !document.querySelector('.frame.phone');
+  document.querySelectorAll('.frame').forEach((f) => f.classList.toggle('phone', on));
+  pnavPhone.textContent = on ? '关闭手机预览' : '手机预览';
+});
+
+/* 切屏时清掉上一屏的 toast / 弹窗，避免残留 */
+pnav.addEventListener('click', () => { hideProgress(); document.querySelector('.toast')?.classList.remove('on'); });
+</script>
+</body>
+</html>

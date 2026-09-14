@@ -1,0 +1,26 @@
+node_modules/
+dist/
+.wrangler/
+.dev.vars
+*.log
+.DS_Store
+public/assets/
+
+# 测试脚本自己生成的中间产物（scripts/run-tests.mjs、browser-tests.mjs、e2e.mjs）
+.tmp-tests/
+.tmp-browser/
+.tmp-e2e/
+# 布局折行诊断（.tmp-layout/repro.mjs 等），见 docs/spec.md §16
+.tmp-layout/
+
+# 本地 AI 协作记录（工作日志/记忆），不属于项目源码
+.workbuddy/
+
+# 本地环境变量（wrangler secret 的本地副本）
+.env
+.env.*
+
+# 默认语言的构建期产物：由 scripts/feature-flag.mjs 依 wrangler.jsonc 的
+# vars.DEFAULT_LOCALE 生成（见 npm run locale）。不入库 —— 想换默认语言改配置即可。
+src/i18n/active.ts
+

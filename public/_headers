@@ -1,0 +1,24 @@
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: same-origin
+  X-Frame-Options: DENY
+  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; object-src 'none'
+  Cache-Control: no-store, no-transform
+
+# 上面那段 Cache-Control 里的 no-transform 不能删：自定义域名上 Cloudflare 会往
+# HTML 响应里注入 RUM 探针（static.cloudflareinsights.com/beacon.min.js），而解密后的
+# 明文就在同源 DOM 里，注入本身就是对端到端加密承诺的破坏。理由见 src/http.ts。
+#
+# 但它的代价是「压缩」——CF 文档原话：Compression is disabled when the no-transform
+# directive is present，且 zone 级的 Compression Rules 也会被它绕过。所以下面这段
+# 把它摘掉：CSS/JS 不是 HTML，CF 不会往里面注入任何东西，放开压缩没有安全代价。
+#
+# 必须用 `! Cache-Control` 先清空 —— _headers 的多规则命中是「逗号拼接」而不是
+# 「更具体的覆盖更宽的」。少这一行会拼成 `no-store, no-transform, no-cache`，
+# no-transform 仍在，压缩照样被否决。改完用下面这条命令实测确认（应出现 content-encoding）：
+#   curl -sSI -H 'Accept-Encoding: gzip, br' https://<你的域名>/assets/styles.css
+/assets/*
+  ! Cache-Control
+  Cache-Control: no-cache

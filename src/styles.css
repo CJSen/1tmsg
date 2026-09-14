@@ -1,0 +1,464 @@
+/* ==========================================================================
+   1tmsg · 产品样式
+   抽取自 docs/03-设计/ui-mockup-v2.html（设计稿即实现参考，此处为唯一真源）
+   与设计稿的差异：删除设计稿外壳（.proto / .pnav / 手机预览框），
+   补齐真实 Markdown 输出、附件、toast、状态页所需规则；
+   全部样式来自本文件，页面里不出现任何内联 style —— 以便放行严格 CSP。
+   ========================================================================== */
+
+/* ==========================================================================
+   1. Tokens
+   ========================================================================== */
+:root {
+  /* brand — ember */
+  --b50: #FFF4EE; --b100: #FFE5D9; --b200: #FFCBB2; --b300: #FCA982;
+  --b400: #F47E4E; --b500: #E8552A; --b600: #BC4219; --b700: #9E3410;
+  /* neutral — warm ink */
+  --i900: #1A1513; --i800: #2C2521; --i700: #483F3A; --i600: #645A54; --i500: #6B625C; --i400: #7A7069;
+  --line: #EAE4DF; --line2: #D9D1CB; --bg: #FAF8F6; --sf: #FFFFFF; --sf2: #F7F4F1; --sf3: #F0EBE7;
+  /* semantic */
+  --ok: #0A7A56; --okS: #E4F6EF; --okL: #B7E4D3;
+  --warn: #8A5610; --warnS: #FCF3E2; --warnL: #EFD9AC;
+  --dan: #B93020; --danS: #FDECE8; --danL: #F3C7BC;
+  --info: #3A5BC7; --infoS: #EDF0FC; --infoL: #C9D3F2;
+  /* shape & motion */
+  --r: 16px; --rc: 10px; --rs: 8px; --rp: 999px;
+  --s1: 0 1px 2px rgba(26,21,19,.05), 0 1px 1px rgba(26,21,19,.03);
+  --s2: 0 14px 34px -16px rgba(26,21,19,.20), 0 3px 8px rgba(26,21,19,.05);
+  --s3: 0 28px 64px -24px rgba(26,21,19,.28);
+  --ring: 0 0 0 3px rgba(232,85,42,.16);
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --t: 180ms cubic-bezier(.4,0,.2,1);
+}
+
+/* ==========================================================================
+   2. Base
+   ========================================================================== */
+*, *::before, *::after { box-sizing: border-box }
+html { -webkit-text-size-adjust: 100% }
+body {
+  margin: 0; font-family: var(--sans); background: var(--bg); color: var(--i900);
+  font-size: 15px; line-height: 1.6; -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+}
+body::before {
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background:
+    radial-gradient(760px 420px at 10% -10%, rgba(232,85,42,.10), transparent 70%),
+    radial-gradient(560px 360px at 94% 2%, rgba(58,91,199,.07), transparent 72%);
+}
+h1, h2, h3, h4, p, ul, ol, figure, blockquote { margin: 0 }
+ul, ol { padding: 0 }
+button { font: inherit; color: inherit }
+input, textarea, select { font: inherit; color: inherit }
+a { color: var(--info) }
+::selection { background: var(--b200); color: var(--i900) }
+:focus-visible { outline: 2px solid var(--b500); outline-offset: 2px }
+.ico { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round }
+.ico-13 { width: 13px; height: 13px }
+.ico-15 { width: 15px; height: 15px }
+.ico-17 { width: 17px; height: 17px }
+/* 作者样式里的 display 会盖掉 UA 的 [hidden]，所以必须显式确保 hidden 生效 */
+[hidden] { display: none !important }
+.m-only { display: none }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0) }
+.sprite { position: absolute; width: 0; height: 0; overflow: hidden }
+
+/* 间距工具（替代设计稿里的内联 style） */
+.mt10 { margin-top: 10px } .mt14 { margin-top: 14px } .mt16 { margin-top: 16px }
+.mt18 { margin-top: 18px } .mt22 { margin-top: 22px }
+.center-block { margin-left: auto; margin-right: auto }
+
+/* ==========================================================================
+   3. 舞台 / 页面骨架
+   ========================================================================== */
+main { position: relative; z-index: 1 }
+.frame { max-width: 1180px; margin: 0 auto; padding: 36px 22px 96px }
+.frame.narrow { max-width: 640px }
+
+/* 页头 */
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 26px }
+.brand { display: flex; align-items: center; gap: 10px }
+.mark {
+  width: 36px; height: 36px; flex: none; border-radius: 11px; display: grid; place-items: center; color: #fff;
+  background: linear-gradient(150deg, var(--b400), var(--b600));
+  box-shadow: 0 8px 18px -8px rgba(188,66,25,.6);
+}
+.mark .ico { width: 19px; height: 19px; stroke-width: 1.7 }
+.bn { display: block; font-size: 16.5px; font-weight: 700; letter-spacing: -.02em; line-height: 1.25 }
+.bs { display: block; font-size: 11.5px; color: var(--i500); line-height: 1.3 }
+.head { margin-bottom: 22px }
+.h1 { font-size: 29px; font-weight: 700; letter-spacing: -.03em; line-height: 1.22 }
+.sub { font-size: 13.5px; color: var(--i500); margin-top: 8px; max-width: 62ch }
+.sub em { font-style: normal; font-weight: 700; color: var(--b600) }
+.center { text-align: center }
+
+/* px */
+.pill {
+  display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 700;
+  padding: 4px 10px; border-radius: var(--rp); border: 1px solid transparent; white-space: nowrap;
+}
+.pill.b { background: var(--b50); color: var(--b600); border-color: var(--b100) }
+.pill.ok { background: var(--okS); color: var(--ok); border-color: var(--okL) }
+.pill.warn { background: var(--warnS); color: var(--warn); border-color: var(--warnL) }
+.pill.n { background: var(--sf2); color: var(--i500); border-color: var(--line) }
+
+/* 顶栏右侧的组合：状态 pill + 语言切换 */
+.tr { display: inline-flex; align-items: center; gap: 8px }
+
+/* 语言切换：固定显示「中文 / EN」两个候选，当前语言高亮（.cur）、另一个置灰（.alt），
+   点整颗按钮切换。创建页 / 已创建屏 / 查看页各有一颗，样式统一由 .lang 承载 */
+.lang {
+  display: inline-flex; align-items: center; gap: 3px;
+  height: 24px; padding: 0 10px;
+  font-size: 11.5px; font-weight: 700; letter-spacing: .02em; line-height: 1;
+  color: var(--i400); background: var(--sf2);
+  border: 1px solid var(--line); border-radius: var(--rp); cursor: pointer;
+  white-space: nowrap;
+  transition: color var(--t), border-color var(--t), background var(--t);
+}
+.lang .cur { color: var(--i800) }
+.lang .sep { color: var(--line2) }
+.lang:hover { border-color: var(--line2); background: var(--sf3) }
+.lang:hover .cur { color: var(--i900) }
+
+/* ==========================================================================
+   4. 卡片 / 表单
+   ========================================================================== */
+.card { background: var(--sf); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--s2); overflow: hidden }
+.card-hd {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 13px 18px; border-bottom: 1px solid var(--line); background: var(--sf2);
+}
+.card-hd h2 { font-size: 13.5px; font-weight: 700; letter-spacing: -.01em; display: flex; align-items: center; gap: 9px }
+/* minmax(0,1fr)：隐式 auto 轨道的最小尺寸 = 内容的 min-content，
+   一旦卡片里出现不可断行的长串（分享页那条 one-line 长链接就是典型），
+   轨道会被撑到比卡片还宽 → 全卡片内容右移并被 .card 的 overflow:hidden 裁掉。
+   把轨道最小值钉成 0，长串只会在自己的盒子里省略号，不再影响整张卡片。 */
+.card-bd { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; padding: 18px }
+.card-bd.lg { padding: 28px 26px 26px; gap: 0 }
+.step {
+  width: 19px; height: 19px; flex: none; border-radius: 6px; display: grid; place-items: center;
+  font: 700 11px/1 var(--mono); background: var(--i900); color: var(--bg);
+}
+
+.field-hd { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px }
+.lbl { font-size: 13px; font-weight: 650; color: var(--i800); display: flex; align-items: center; gap: 7px }
+.optag { font-size: 10.5px; font-weight: 600; color: var(--i400); border: 1px solid var(--line); padding: 1px 6px; border-radius: var(--rp); background: var(--sf) }
+.cnt { font: 500 11px/1 var(--mono); color: var(--i400); display: flex; align-items: center; gap: 6px }
+.in {
+  width: 100%; background: var(--sf2); border: 1px solid var(--line); border-radius: var(--rc);
+  padding: 10px 12px; font-size: 14px; outline: none; transition: var(--t);
+}
+.in::placeholder { color: var(--i400) }
+.in:hover { border-color: var(--line2) }
+.in:focus { background: var(--sf); border-color: var(--b400); box-shadow: var(--ring) }
+.wrap { position: relative; display: flex; align-items: center }
+.wrap .in { padding-right: 44px }
+.eye { position: absolute; right: 5px; border: 0; background: none; cursor: pointer; padding: 7px; border-radius: 7px; color: var(--i400); display: grid; place-items: center }
+.eye:hover { background: var(--sf3); color: var(--i700) }
+.seg { display: flex; gap: 2px; padding: 2px; background: var(--sf3); border: 1px solid var(--line); border-radius: var(--rp) }
+.seg button { border: 0; background: none; cursor: pointer; padding: 5px 13px; border-radius: var(--rp); font-size: 12px; font-weight: 650; color: var(--i500); transition: var(--t) }
+.seg button[aria-pressed="true"] { background: var(--sf); color: var(--i900); box-shadow: var(--s1) }
+.chips { display: flex; gap: 6px; flex-wrap: wrap }
+.chips button {
+  border: 1px solid var(--line); background: var(--sf); cursor: pointer; padding: 7px 12px;
+  border-radius: var(--rp); font-size: 12.5px; font-weight: 600; color: var(--i600);
+  box-shadow: var(--s1); transition: var(--t);
+}
+.chips button:hover { border-color: var(--line2); color: var(--i900) }
+.chips button[aria-pressed="true"] { background: var(--i900); border-color: var(--i900); color: var(--bg) }
+.stepper { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: var(--rc); overflow: hidden; background: var(--sf) }
+.stepper button { width: 38px; height: 38px; border: 0; background: var(--sf2); cursor: pointer; color: var(--i600); display: grid; place-items: center; font-size: 17px; line-height: 1; transition: var(--t) }
+.stepper button:hover { background: var(--sf3); color: var(--i900) }
+.stepper input { width: 58px; height: 38px; border: 0; background: none; text-align: center; font: 700 14px/1 var(--sans); outline: none }
+
+.str { display: flex; gap: 4px; margin-top: 8px }
+.str i { height: 3px; flex: 1; border-radius: 2px; background: var(--sf3); transition: var(--t) }
+.str[data-s="1"] i:nth-child(-n+1) { background: var(--dan) }
+.str[data-s="2"] i:nth-child(-n+2) { background: var(--warn) }
+.str[data-s="3"] i:nth-child(-n+3) { background: #C9A227 }
+.str[data-s="4"] i { background: var(--ok) }
+
+/* 开关行 */
+.opt {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--rc);
+  background: var(--sf2); transition: var(--t);
+}
+.opt.on { border-color: var(--b200); background: var(--b50) }
+.opt b { display: block; font-size: 13px; font-weight: 650; color: var(--i800) }
+.opt span { display: block; font-size: 11.5px; color: var(--i500); line-height: 1.45; margin-top: 1px }
+.opt .mut { color: var(--i400); font-style: normal; margin-top: 3px }
+.sw {
+  position: relative; width: 44px; height: 26px; flex: none; border-radius: var(--rp);
+  border: 1px solid var(--line2); background: var(--sf3); cursor: pointer; padding: 0; transition: var(--t);
+}
+.sw::after {
+  content: ""; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 3px rgba(26,21,19,.3); transition: var(--t);
+}
+.sw[aria-checked="true"] { background: var(--b500); border-color: var(--b500) }
+.sw[aria-checked="true"]::after { transform: translateX(18px) }
+
+/* ==========================================================================
+   5. 编辑器 / 附件
+   ========================================================================== */
+.editor { border: 1px solid var(--line); border-radius: var(--rc); background: var(--sf2); overflow: hidden; transition: var(--t) }
+.editor:focus-within { border-color: var(--b400); background: var(--sf); box-shadow: var(--ring) }
+.mdtb { display: flex; align-items: center; gap: 1px; padding: 5px 7px; background: var(--sf); border-bottom: 1px solid var(--line); flex-wrap: wrap }
+.mdtb .tbtn { border: 0; background: none; cursor: pointer; padding: 6px; border-radius: 6px; color: var(--i500); display: grid; place-items: center; transition: var(--t) }
+.mdtb .tbtn:hover { background: var(--sf2); color: var(--i900) }
+.mdtb .sp { width: 1px; height: 16px; background: var(--line); margin: 0 5px }
+.mdtb .suffix { margin-left: auto; font: 600 10.5px/1 var(--mono); color: var(--i400); padding-right: 4px; letter-spacing: .04em }
+#md {
+  display: block; width: 100%; border: 0; background: none; outline: none; resize: vertical;
+  min-height: 252px; padding: 14px 15px; font: 400 13px/1.8 var(--mono);
+}
+.mdv { padding: 16px 18px; min-height: 252px }
+/* 预览态：只留渲染结果，工具栏与附件托盘（只服务于编辑）一并收起 */
+.previewing .mdtb, .previewing .atray { display: none }
+.previewing .mdv { background: var(--sf) }
+.atray {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 10px;
+  padding: 10px 12px; border: 1px dashed var(--line2); border-radius: var(--rc);
+  background: var(--sf2); transition: var(--t);
+}
+.atray.hot { border-color: var(--b400); background: var(--b50) }
+.atip { font-size: 11.5px; color: var(--i500); display: flex; align-items: center; gap: 7px; flex: 1; min-width: 190px; line-height: 1.45 }
+.thumbs { display: flex; gap: 8px; flex-wrap: wrap }
+.thumb {
+  position: relative; width: 64px; height: 48px; border-radius: var(--rs); overflow: hidden;
+  border: 1px solid var(--line); background: linear-gradient(140deg, #FCD9C4, #F2A98A); box-shadow: var(--s1);
+}
+.thumb img { width: 100%; height: 100%; object-fit: cover; display: block }
+.thumb .x {
+  position: absolute; top: 2px; right: 2px; width: 17px; height: 17px; border: 0; border-radius: 50%;
+  background: rgba(20,16,14,.7); color: #fff; cursor: pointer; display: grid; place-items: center;
+  font-size: 11px; line-height: 1; padding: 0;
+}
+.thumb .x:hover { background: var(--dan) }
+.tadd {
+  width: 64px; height: 48px; border: 1px solid var(--line2); border-radius: var(--rs);
+  background: var(--sf); color: var(--i500); cursor: pointer; display: grid; place-items: center; transition: var(--t);
+}
+.tadd:hover { border-color: var(--b400); color: var(--b600); background: var(--b50) }
+
+/* ==========================================================================
+   6. 布局 + 创建动作区
+   ========================================================================== */
+.grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; align-items: start }
+.col-b { display: grid; gap: 0 }
+.act {
+  margin-top: 16px; padding: 16px; border: 1px solid var(--b200); border-radius: var(--r);
+  background: linear-gradient(180deg, var(--b50), var(--sf)); box-shadow: var(--s1);
+}
+.sum { display: grid; gap: 5px; margin-bottom: 14px }
+.srow { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 12.5px; line-height: 1.5 }
+.srow .k { color: var(--i500); flex: none }
+.srow .v { font-weight: 650; color: var(--b600); text-align: right; white-space: nowrap }
+.micro { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 11px; color: var(--i400); margin-top: 10px; text-align: center; line-height: 1.5 }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid transparent;
+  border-radius: var(--rc); cursor: pointer; padding: 11px 20px; font-size: 14px; font-weight: 650;
+  letter-spacing: -.01em; transition: var(--t); white-space: nowrap; background: var(--sf); text-decoration: none;
+}
+.btn .ico { width: 17px; height: 17px }
+.btn.pri { background: var(--b600); color: #fff; box-shadow: 0 10px 24px -12px rgba(188,66,25,.9) }
+.btn.pri:hover { background: var(--b700); transform: translateY(-1px) }
+.btn.out { border-color: var(--line); color: var(--i800); box-shadow: var(--s1) }
+.btn.out:hover { border-color: var(--line2); transform: translateY(-1px) }
+.btn.lg { padding: 14px 24px; font-size: 15px }
+.btn.block { width: 100% }
+.btn[disabled], .btn[aria-busy="true"] { opacity: .62; cursor: progress; transform: none !important }
+
+/* ==========================================================================
+   7. 提示条 / 状态块
+   ========================================================================== */
+.notice {
+  display: flex; gap: 10px; padding: 12px 14px; border-radius: var(--rc); border: 1px solid var(--line);
+  background: var(--sf2); font-size: 12.5px; line-height: 1.65; color: var(--i700);
+}
+.notice .ico { margin-top: 2px }
+.notice b { color: var(--i900) }
+.notice.warn { border-color: var(--warnL); background: var(--warnS) }
+.notice.ok { border-color: var(--okL); background: var(--okS) }
+.notice.info { border-color: var(--infoL); background: var(--infoS) }
+.notice.dan { border-color: var(--danL); background: var(--danS); color: var(--dan) }
+.notice code { font: 400 11.5px/1 var(--mono); background: rgba(26,21,19,.07); padding: 2px 5px; border-radius: 5px }
+/* flex 文本项默认 min-width:auto —— 里面的长串（长链接/无空格长串）会顶开整行，
+   实测 320px 容器下越界 1458px 并被 .card 裁掉。钉住 min-width 才收得住。 */
+.note > span, .notice > span, .rdone > span { min-width: 0; overflow-wrap: anywhere }
+
+/* ==========================================================================
+   8. 已创建（分享）
+   ========================================================================== */
+.okico {
+  width: 54px; height: 54px; margin: 0 auto 16px; border-radius: 17px; display: grid; place-items: center;
+  background: var(--okS); border: 1px solid var(--okL); color: var(--ok);
+}
+.okico .ico { width: 27px; height: 27px; stroke-width: 1.9 }
+.linkbox { display: flex; align-items: center; gap: 8px; padding: 8px; margin: 20px 0 14px; border: 1px solid var(--line); border-radius: var(--rc); background: var(--sf2); min-width: 0 }
+.linkbox code {
+  flex: 1; min-width: 0; padding-left: 6px; font: 400 12px/1.5 var(--mono); color: var(--i600);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left;
+}
+.linkbox code em { font-style: normal; font-weight: 700; color: var(--b600) }
+.linkbox .btn { flex: none; padding: 9px 14px; font-size: 13px }
+/* 同上：三列状态块的 min-content 也可能被长词撑破（"100 次" 之类），一并钉住 */
+.sts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 14px; text-align: left }
+.st { padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--rc); background: var(--sf2) }
+.stk { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--i500) }
+.stv { display: block; font-size: 13.5px; font-weight: 650; color: var(--i900); margin-top: 3px }
+
+/* ==========================================================================
+   9. 解锁 / 查看
+   ========================================================================== */
+.lockico {
+  width: 52px; height: 52px; margin: 0 auto 16px; border-radius: 17px; display: grid; place-items: center;
+  background: var(--b50); border: 1px solid var(--b100); color: var(--b600);
+}
+.lockico .ico { width: 26px; height: 26px; stroke-width: 1.7 }
+.fatalico {
+  width: 52px; height: 52px; margin: 0 auto 16px; border-radius: 17px; display: grid; place-items: center;
+  background: var(--warnS); border: 1px solid var(--warnL); color: var(--warn);
+}
+.fatalico .ico { width: 26px; height: 26px; stroke-width: 1.7 }
+.note { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: var(--rc); background: var(--b50); border: 1px solid var(--b100); font-size: 13.5px; color: var(--i800) }
+.note .ico { margin-top: 2px; color: var(--b600) }
+.rbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 11px 16px; border-bottom: 1px solid var(--line); background: var(--sf2) }
+.rgroup { display: inline-flex; align-items: center; gap: 10px; margin-left: auto }
+/* 内容头/尾的复制按钮：头部是轻量 chip，尾部用 .btn.out.block 做显眼的大按钮 */
+.cpbtn {
+  display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: var(--rp); background: var(--sf);
+  color: var(--i600); font-size: 11.5px; font-weight: 650; white-space: nowrap; transition: var(--t);
+}
+.cpbtn:hover { border-color: var(--line2); color: var(--i900) }
+.cpbtn.ok { border-color: var(--okL); background: var(--okS); color: var(--ok) }
+.cta { display: grid; gap: 10px; padding: 16px 18px 18px; border-top: 1px solid var(--line); background: var(--sf2) }
+.ctat { font-size: 12.5px; font-weight: 650; color: var(--i600); text-align: center }
+.cta .micro { margin-top: 0 }
+.rdone { display: flex; gap: 10px; padding: 13px 16px; border-top: 1px solid var(--line); background: var(--warnS); font-size: 12.5px; line-height: 1.6; color: var(--warn) }
+.rdone .ico { margin-top: 2px }
+
+/* 加载态 */
+.spin { width: 26px; height: 26px; margin: 0 auto 14px; border-radius: 50%; border: 2.5px solid var(--line2); border-top-color: var(--b500); animation: spin .8s linear infinite }
+@keyframes spin { to { transform: rotate(360deg) } }
+
+/* ==========================================================================
+   10. Markdown 输出（真实解析结果，见 src/client/markdown.ts）
+   ========================================================================== */
+/* 折行策略：这里必须用 `anywhere`，不能用 `break-word`。
+   break-word 只在排版最后一步断词，不参与 min-content 计算 ——
+   auto 布局的 table 依旧会被长串顶到 1800px 宽（390px 移动视口实测越界 1545px），
+   而 .card 的 overflow:hidden 会把它直接裁掉，右侧内容永久看不见。
+   anywhere 参与 min-content 计算，长串才会真正收进容器。 */
+.md { font-size: 14px; line-height: 1.8; color: var(--i800); overflow-wrap: anywhere }
+.md h1, .md h2, .md h3, .md h4, .md h5, .md h6 { font-weight: 700; letter-spacing: -.02em; color: var(--i900); margin: 20px 0 10px; line-height: 1.3 }
+.md > :first-child { margin-top: 0 }
+.md h1 { font-size: 21px }
+.md h2 { font-size: 18.5px }
+.md h3 { font-size: 17px }
+.md h4 { font-size: 15px }
+.md h5, .md h6 { font-size: 14px }
+.md p { margin: 0 0 12px }
+.md ul, .md ol { margin: 0 0 12px; padding-left: 22px }
+.md li { margin-bottom: 5px }
+.md li > ul, .md li > ol { margin-top: 5px; margin-bottom: 0 }
+.md b, .md strong { font-weight: 700; color: var(--i900) }
+.md em { font-style: italic }
+.md del { color: var(--i500) }
+.md code { font: 400 12.5px/1.5 var(--mono); background: var(--sf3); padding: 2px 5px; border-radius: 5px; color: var(--b700) }
+/* 代码块：移动端不做横向滚动，长行直接折行（换行与缩进仍然保留）。
+   只加 overflow-wrap 无效 —— <pre> 的 white-space:pre 本身就拒绝折行，
+   必须一起改成 pre-wrap。 */
+.md pre { margin: 0 0 12px; padding: 12px 14px; border-radius: var(--rc); background: var(--i900); color: #F1EBE7; white-space: pre-wrap; overflow-wrap: anywhere; overflow: auto }
+.md pre code { background: none; color: inherit; padding: 0; font-size: 12.5px; line-height: 1.6 }
+.md blockquote { margin: 0 0 12px; padding: 5px 0 5px 14px; border-left: 3px solid var(--b300); color: var(--i600) }
+.md blockquote > :last-child { margin-bottom: 0 }
+.md a { color: var(--info); text-decoration: underline; text-underline-offset: 2px }
+.md hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0 }
+.md img { display: block; max-width: 100%; height: auto; border-radius: var(--rc); border: 1px solid var(--line); margin: 4px 0 12px }
+.md table { width: 100%; border-collapse: collapse; margin: 0 0 12px; font-size: 13px }
+.md th, .md td { border: 1px solid var(--line); padding: 7px 10px; text-align: left }
+/* 表头不折行：2 字中文表头（"字段"）在 anywhere 折行策略下会被拆成两行。
+   表头文字本来就短，保持单行；真出现超长表头时，下面 .md-scroll 兜底可滑动。 */
+.md th { background: var(--sf2); font-weight: 650; color: var(--i900); white-space: nowrap }
+/* 表格兜底容器：多列表格再怎么钉 min-width 也可能超出正文宽度，
+   给一层横向滚动，宁可滑动也不能被 .card{overflow:hidden} 裁掉。
+   （由 markdown.ts 的 hydrateMarkdown 在渲染后包上） */
+.md-scroll { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch }
+.md figcaption { font-size: 12px; color: var(--i500); margin-top: -8px; margin-bottom: 12px }
+/* 被策略拦下的图片：不加载、可读、不刺眼 */
+.imgblocked {
+  display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border: 1px dashed var(--line2);
+  background: var(--sf2); color: var(--i500); border-radius: var(--rp); font-size: 11.5px; font-weight: 600;
+}
+
+/* ==========================================================================
+   11. Toast / 处理中弹窗
+   ========================================================================== */
+.toast {
+  position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 14px); z-index: 90;
+  max-width: min(88vw, 460px); padding: 11px 16px; border-radius: var(--rc); border: 1px solid var(--i800);
+  background: var(--i900); color: var(--bg); font-size: 13px; font-weight: 600; line-height: 1.5;
+  box-shadow: var(--s3); opacity: 0; pointer-events: none; transition: var(--t);
+}
+.toast.on { opacity: 1; transform: translate(-50%, 0) }
+.toast.err { background: var(--dan); border-color: var(--dan) }
+
+/* 处理中弹窗：创建流程（本地加密 → 图片上传 → 确认）的阻塞式进度反馈。
+   刻意做成 modal 而不是角落 toast —— 这几步用户必须等完，且期间不该再碰页面。 */
+.modal {
+  position: fixed; inset: 0; z-index: 110; display: grid; place-items: center;
+  padding: 20px; background: rgba(26,21,19,.32);
+  opacity: 0; pointer-events: none; transition: var(--t);
+}
+.modal.on { opacity: 1; pointer-events: auto }
+.modal-bd {
+  width: min(86vw, 304px); padding: 26px 22px 24px; border-radius: var(--r);
+  border: 1px solid var(--line); background: var(--sf); box-shadow: var(--s3); text-align: center;
+  transform: translateY(10px) scale(.97); transition: var(--t);
+}
+.modal.on .modal-bd { transform: none }
+.modal-tx { font-size: 13.5px; font-weight: 650; color: var(--i800); line-height: 1.55 }
+
+/* ==========================================================================
+   12. 响应式
+   ========================================================================== */
+@media (min-width: 920px) {
+  .frame { container-type: inline-size }
+  .grid { grid-template-columns: minmax(0, 1fr) 340px; gap: 26px }
+  .col-b { position: sticky; top: 22px }
+  /* 查看页宽度对齐创建页的输入列：
+     770 = 1180（.frame 上限）− 22×2（内边距）− 340（右栏）− 26（列间距）。
+     这样收件人读到的正文宽度（770 − 2 边框 − 18×2 内边距 = 732）与发送者
+     编辑时的输入框/正文区完全一致，行宽与折行位置不再跳变。
+     ≥920px 才改；≤919px 仍是单列 + 640 上限，移动端观感不变。 */
+  .frame.narrow { max-width: 814px }
+}
+@media (max-width: 919px) {
+  .topbar { margin-bottom: 20px; flex-wrap: wrap }
+  .h1 { font-size: 22px }
+  .head { margin-bottom: 18px }
+  .sub { font-size: 13px }
+  .card-bd { padding: 16px; gap: 16px }
+  .card-bd.lg { padding: 22px 18px }
+  #md { min-height: 186px }
+  .mdv { min-height: 186px }
+  .m-only { display: inline-flex }
+  .act { margin-top: 14px }
+  .btn.lg { padding: 15px 22px }
+  .frame.narrow { padding: 26px 18px 80px }
+}
+@media (max-width: 640px) {
+  .frame { padding: 24px 16px 80px }
+  .band { display: none }
+}
+@media (max-width: 559px) {
+  .sts { grid-template-columns: 1fr }
+}
+@media print { .toast, .modal { display: none } }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important } }
