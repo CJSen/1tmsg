@@ -455,6 +455,10 @@ main { position: relative; z-index: 1 }
 }
 @media (max-width: 919px) {
   .topbar { margin-bottom: 20px; flex-wrap: wrap }
+  /* brand 变成可收缩弹性项：英文 tagline 较长时会自然折行，
+     而不是把 .tr 整组挤到下一行（换行判定用的是单行完整宽度，
+     brand 不允许收缩时右侧组永远先被判出局、掉行后还靠左）。 */
+  .brand { flex: 1 1 0; min-width: 0 }
   .h1 { font-size: 22px }
   .head { margin-bottom: 18px }
   .sub { font-size: 13px }
