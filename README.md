@@ -266,7 +266,7 @@ https://1tmsg.<你的账号>.workers.dev
 | 单张图片 ※ | ≤ 100 MB，最多 8 张 |
 | 图片合计 ※ | ≤ 200 MB / 条 |
 | 文本内容 | ≤ 10 MB |
-| 过期时间 | 1 分钟 – 7 天，默认 1 小时 |
+| 过期时间 | 3 分钟 – 7 天，默认 1 小时 |
 | 可查看次数 | 1 – 100，默认 5（关闭阅后即焚时可用） |
 | 备注 | ≤ 120 字 |
 | 访问密码 | ≥ 6 位，连续输错 10 次销毁消息 |
@@ -359,6 +359,17 @@ npm run dev -- -c wrangler.images.jsonc  # 带图片
 - **[docs/spec.md](docs/spec.md)** —— 完整设计规格
 
 技术栈：TypeScript + Web Crypto，Cloudflare Workers + Durable Objects（SQLite）；开启图片功能时再加一个私有 R2 桶。不需要 VPS、MySQL、Redis。
+
+---
+
+## 致谢
+
+| 项目 | 与本项目的关系 |
+|---|---|
+| [PrivateBin](https://github.com/PrivateBin/PrivateBin) | 「服务器零知识」粘贴服务的经典实现 —— 在浏览器里加密、密钥不进服务端，这条范式由它确立 |
+| [nxfu/binthere](https://github.com/nxfu/binthere) | 同样跑在 Cloudflare Worker + Durable Object 上的零知识阅后即焚实现，是本项目在架构取舍上最直接的参照 |
+| [yangtb2024/OneTimeMessagePHP](https://github.com/yangtb2024/OneTimeMessagePHP) | 无数据库、一次查看的轻量 PHP 自托管实现，印证了这类工具可以做到极简 |
+| [LINUX DO](https://linux.do/) | 社区 —— 自部署、隐私工具与 AI 话题的聚集地 |
 
 ---
 

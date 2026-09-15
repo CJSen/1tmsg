@@ -9,7 +9,7 @@ export const DEFAULT_VIEWS = 5;
 
 /* 过期时间（秒）。UI 上的档位按钮直接写死在页面里（data-ttl），
    文案由 i18n 生成（ttl.h1…与 unit.*），这里只保留上下限与默认值 */
-export const MIN_TTL_SECONDS = 60;
+export const MIN_TTL_SECONDS = 3 * 60; // 最短 3 分钟（再短会让收件人来不及打开）
 export const MAX_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 天
 export const DEFAULT_TTL_SECONDS = 60 * 60; // 1 小时
 

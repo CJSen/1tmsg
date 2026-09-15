@@ -263,7 +263,7 @@ It's recommended to configure a custom domain in the cf workers console for easi
 | Single image ※ | ≤ 100 MB, up to 8 images |
 | Total images ※ | ≤ 200 MB / message |
 | Text content | ≤ 10 MB |
-| Expiration time | 1 minute – 7 days, default 1 hour |
+| Expiration time | 3 minutes – 7 days, default 1 hour |
 | View count | 1 – 100, default 5 (available when burn-after-reading is off) |
 | Note | ≤ 120 chars |
 | Access password | ≥ 6 chars, 10 consecutive wrong attempts destroys the message |
@@ -356,6 +356,17 @@ If you care about how it works — how keys are derived, why an extra `verifier`
 - **[docs/spec.md](docs/spec.md)** —— full design spec
 
 Tech stack: TypeScript + Web Crypto, Cloudflare Workers + Durable Objects (SQLite); with image support enabled, add a private R2 bucket. No VPS, MySQL, or Redis needed.
+
+---
+
+## Acknowledgements
+
+| Project | How it relates to this project |
+|---|---|
+| [PrivateBin](https://github.com/PrivateBin/PrivateBin) | The classic "server has zero knowledge" pastebin — encrypting in the browser and keeping the key off the server is a pattern it established |
+| [nxfu/binthere](https://github.com/nxfu/binthere) | A zero-knowledge burn-after-reading implementation that also runs on a Cloudflare Worker + Durable Object — the closest reference for this project's architectural trade-offs |
+| [yangtb2024/OneTimeMessagePHP](https://github.com/yangtb2024/OneTimeMessagePHP) | A database-free, view-once, lightweight self-hosted PHP implementation — proof that a tool like this can be extremely simple |
+| [LINUX DO](https://linux.do/) | Community — a gathering place for self-hosting, privacy tools, and AI discussion |
 
 ---
 
