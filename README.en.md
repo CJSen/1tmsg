@@ -12,6 +12,8 @@ The content is encrypted in your browser; the server only stores an unreadable c
 
 > 💡 **Deploy in 5 minutes, runs within the free tier.** You only need a Cloudflare account; just copy the commands below.
 
+> ⚠️ **Lawful use only.** This project is a self-deployment tool: the author operates no public instance and has no access to any instance's data; users must comply with the laws and regulations of their own jurisdiction. See the **[Legal & Compliance Notice](#legal--compliance-notice)**.
+
 ---
 
 ## What it does in 30 seconds
@@ -237,6 +239,7 @@ It's recommended to configure a custom domain in the cf workers console for easi
 | **Change Worker name** | Change `name` in `wrangler.jsonc`. If image support is on, the bucket name in the create command must also stay consistent (or create a different bucket name and sync `bucket_name`) |
 | **Disable workers.dev fallback address** | Remove the `workers_dev` line from `wrangler.jsonc`, keeping only the custom domain |
 | **Adjust per-message / per-image limits** | Edit the `vars` in `wrangler.jsonc` (`MAX_MESSAGE_BYTES`, `MAX_ATTACHMENT_BYTES`, `RATE_LIMIT_MAX_CREATES`) then redeploy. The latter two only matter in the image version |
+| **Configure a report channel** | Edit `vars.ABUSE_CONTACT` in `wrangler.jsonc` (**accepts an email or an `http(s)` URL only**, validated at build time), then `npm run deploy` again. **Leaving it empty hides the report entry in the footer**, and the build log prints a prominent reminder (recommended to fill in); use an address you will keep checking. The footer's "lawful use only…" notice **is built in** and needs no configuration (see "Before going public" below) |
 | **Update version** | `git pull && npm run deploy` to overwrite-upgrade. **Keep your own domain, bucket name and switches in a separate config file** (e.g. `wrangler.me.jsonc`, see the tip above) and point `-c` at it — editing `wrangler.jsonc` directly gets overwritten or conflicts on `git pull` |
 
 `wrangler.jsonc` (text only) and `wrangler.images.jsonc` (with images) both **ship with the repo and stay tracked** — one-click deploy relies on them to provision resources. Keep configs that carry your real domain or bucket name in a separate file (e.g. `wrangler.me.jsonc`): `.gitignore` already covers `wrangler*.jsonc`, so those changes stay local.
@@ -353,6 +356,55 @@ If you care about how it works — how keys are derived, why an extra `verifier`
 - **[docs/spec.md](docs/spec.md)** —— full design spec
 
 Tech stack: TypeScript + Web Crypto, Cloudflare Workers + Durable Objects (SQLite); with image support enabled, add a private R2 bucket. No VPS, MySQL, or Redis needed.
+
+---
+
+## Before going public, do these first
+
+> These items **have nothing to do with the author and depend only on the deployer**: the author operates no public instance and cannot reach any data in yours. Whoever you open it up to, the responsibility is yours.
+
+| What to do | How | Why |
+|---|---|---|
+| **Set up an abuse contact** | Make sure the email on your Cloudflare account works, and configure a dedicated abuse contact | Cloudflare's Trust & Safety sends abuse reports (including those forwarded by law enforcement) to **your account email or the abuse contact you configured**. If none is set, or nobody reads it, reports bypass you and go straight upstream; and the official requirement is to respond **within 24 hours** — failing to respond can get content removed, **or even your account's service suspended** |
+| **Configure a report channel** | Set `vars.ABUSE_CONTACT` (email or URL, validated at build time). **Leaving it empty hides the report entry in the footer**, and the build log prints a prominent reminder | The footer's "lawful use only…" notice **is already built in** (it follows the UI language); you only need to add one real, working report channel — notice plus channel together are the most direct and the easiest-to-evidence proof that you "gave notice and exercised management responsibility" |
+| **Prepare your takedown action** | On receiving a report, run: `curl -X DELETE https://<your-domain>/api/messages/<id>` | This endpoint ships with the project; it destroys the ciphertext and clears the image from object storage. **Remember: ask only for the message id, never for the key after the `#`** — the key is useless for takedown, and the moment you hold it you are no longer the party who "cannot see the content". Without an id there is nothing to locate, so spell out your reporting requirements from the start |
+| **Keep a response log** | Record locally: time / source / message id / what you did / how long it took | The page notice and the report channel are visible to anyone; **only this log can prove "I acted on the report I received"**. Keep it locally, not inside the service |
+| **Decide your kill switch** | Full stop on creation: `npx wrangler delete` (take the whole Worker offline), or set `RATE_LIMIT_MAX_CREATES` to `1` and redeploy | The nuclear option for extreme cases. ⚠️ **Do not set it to `0`** — in the code `0` is treated as "not set" and falls back to the default, which means nothing is actually turned off |
+
+### Additional notes for deployers in different jurisdictions
+
+> The following are reminders only, not legal advice; consult a licensed lawyer in your jurisdiction about your specific situation.
+
+- Deployers are spread across different jurisdictions, so **the project itself hardcodes no jurisdiction's compliance requirements**, and both config options above are off by default — whether to use them is your call.
+- Offering an internet information service to the public carries licensing, registration/filing, or content-safety obligations in many jurisdictions. This project runs on Cloudflare's network, collects no accounts and stores no content, but **that does not mean you are exempt** — whether an obligation falls on you depends on where you are, where your recipients are, and how widely you open it up.
+- One point to be very clear about: this project is designed as "end-to-end encrypted + burn after reading + no access logs", so **you can neither review content nor answer "who sent this message"**. That means there is little room to reduce your responsibility by "cooperating with an investigation" — what's left is exactly those items above: clear notice, a working report channel, and actually acting on reports.
+- If your instance is open to the public, seriously consider narrowing it to people you know (for example, restrict access with Cloudflare Access).
+- See the full disclaimer in the [Legal & Compliance Notice](#legal--compliance-notice) below.
+
+---
+
+## Legal & Compliance Notice
+
+**This project is for lawful use only.** It is a self-deployed open-source tool: the author **operates no public instance and hosts no user data**, has no administrative access to any instance, and cannot access, review, or delete content in instances deployed by others. The decryption key exists only after the `#` in the link (see "About security"), which technically means **no one can review instance content** — therefore **all compliance and legal responsibility rests with the deployer and the user**.
+
+This notice **does not target any particular country or region**: "applicable law" below means the law in force where you and your recipients are located.
+
+By using or deploying this project, you are deemed to have understood and agreed:
+
+| Item | Description |
+|---|---|
+| **No unlawful use** | Do not use it to create, copy, publish, or disseminate any information that violates applicable law, or to engage in any unlawful activity. This includes but is not limited to: content that endangers national security or social stability, terrorism and extremism, violent content, obscenity and pornography, gambling, fraud, pyramid schemes, drugs, or content infringing the lawful rights of others |
+| **No unlawful data** | Do not use it to unlawfully obtain, buy, sell, exchange, or publish the personal information, privacy, trade secrets, or undisclosed data of others (such as ID documents, account credentials, contact lists, or location traces). Compliance obligations under applicable laws on personal information protection, data security, and cybersecurity rest with the user |
+| **No aiding crime** | Do not use it to provide a transmission or hiding channel for online fraud, money laundering, illegal fundraising, hacking, data theft, or evading supervision |
+| **Protection of minors** | Do not send unlawful or harmful information to minors; scenarios involving minors must comply with the provisions on the protection of minors in applicable law |
+| **Deployer responsibility** | As the operator of an instance, you may have to bear licensing, registration/filing, content-safety, and log-retention obligations (especially when offering an internet information service to the public); assess these and handle them yourself in accordance with the law, and you alone bear all consequences arising from deploying, operating, or using this software |
+| **Cooperating with law enforcement** | If you are the deployer of an instance, you must cooperate with lawful requests from law enforcement yourself. The author hosts no instance and no data, and can neither provide nor delete any content on your behalf |
+| **Author's liability** | This project is provided "as is" under the MIT license, without any express or implied warranty. The author is not responsible for anyone's use of this software, nor for any direct or indirect loss or legal liability arising from it |
+| **Reporting** | If you find others abusing this project, report it to the relevant platform or law enforcement agency, not to the author — the author has no ability to handle any instance |
+
+This notice is not legal advice; consult a professional lawyer about your specific situation. **If you do not agree with any of the above, do not use or deploy this project.**
+
+If you plan to open your instance to the public, read "Before going public, do these first" above — every item in that checklist protects you better than this notice does.
 
 ---
 
