@@ -4,7 +4,8 @@
  * 产物契约（public/index.html 与 public/m.html 按固定文件名引用，不能带 hash）：
  *   create.js   创建页入口
  *   view.js     查看页入口
- *   chunk-*.js  两个入口共享的代码（marked / dompurify / crypto 等）
+ *   chunk-*.js  两个入口共享的代码（marked / dompurify / crypto 等），
+ *               以及运行期才 import 的模块（另一种语言、已创建屏的二维码）
  *   styles.css  由 src/styles.css 直接复制
  *
  * 因为 styles.css 是直接复制而非经过打包器，页面里没有内联样式，

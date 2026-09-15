@@ -10,11 +10,20 @@
 <!--
   1tmsg · UI v2 · 设计稿 + 实现参考
   ---------------------------------------------------------------------------
-  真源声明：本文件已与下列正式代码同步（2026-09-14），三处不一致时以正式代码为准。
+  真源声明：本文件已与下列正式代码同步（2026-09-15），三处不一致时以正式代码为准。
     · src/styles.css        样式（第 3 节起的「产品样式」逐条镜像本文件）
     · public/index.html     01 创建 / 02 已创建
     · public/m.html         03 密码解锁 / 04 查看内容 / 05 加载与失败
+    · src/i18n/zh.ts        文案键与中文原文（本文件里的 data-i18n 键名照抄它）
     · src/client/*.ts       文案、状态机、Toast / 进度弹窗的触发时机
+
+  data-i18n 属性：正文里的 data-i18n / data-i18n-aria-label / data-i18n-title /
+  data-i18n-placeholder 与文案 <span> 的拆分方式，都照抄正式 HTML —— 本文件没有 i18n
+  运行期，这些属性在此纯属惰性标注，作用是让「键 ↔ 元素」一一可比（漏译、错键一眼可见）。
+    · 语言切换按钮在这稿里也是惰性的：点它不会换语言（不引 en 字典）。
+      要看英文版排版请直接跑正式站点。
+    · 首屏为空的节点（#burnHint / #pwHint / #sentLink / #fatalBody / #readBody）在
+      正式代码里由 JS 填，本稿为了能看排版放了示例内容，属设计稿独有。
 
   设计语言：纸张暖中性 + 余烬橙
     · brand-600 #BC4219 承载文字与实心按钮（对白底 5.34:1，满足 WCAG AA）
@@ -45,8 +54,29 @@
                                        #s-unlock → public/m.html     #stateUnlock
                                        #s-read   → public/m.html     #stateRead
                                        #s-states → public/m.html     #stateLoading / #stateFatal
+                                     注意 m.html 的三种状态同页、共用一块顶栏，拆成三个屏后
+                                     各带一份：.lang / .gh 在稿里各 5 处（正式 3 处），
+                                     view.badge 3 处（正式 1 处）—— 计数差异只来自这次拆分。
   除上述之外，所有类名、id、层级、文案均与正式代码逐字一致，可直接比对抽取。
   校验方式：从 src/styles.css 抽出的每条规则都应在第 3–12 节找到同名同值的声明。
+
+  ---------------------------------------------------------------------------
+  设计先行项：无（2026-09-15 的 02 页二维码已回流正式代码）
+    · .share / .qr / .qrbox / .qrhint 与 #qr / #qrbox 已同步进
+      src/styles.css §8 + public/index.html + src/client/qr.ts（动态 import + uqr）
+    · 本文件里的二维码仍是内联 SVG 占位 —— 属「设计稿示例内容」：正式代码由 qr.ts
+      按真实链接现场生成（93 字符 / ecc M → 41 模块 / 版本 6），两者不是同一张图
+    · 状态卡仍是原来的 3 张、文案与顺序不变，故 #sentBurn / #sentTtl / #sentKey 无需改动
+
+  ---------------------------------------------------------------------------
+  本次（2026-09-15）从正式代码反向同步进来的部分
+    · 顶栏右侧组 .tr / .trr / .lang / .gh + #i-github：五处顶栏全部补齐；
+      #s-sent 原本没有顶栏，按 public/index.html 的 #sentScreen 补了一块（该屏无状态 pill）
+    · 查看页顶栏 pill 补上 .band（此前漏了，窄屏不会隐藏）
+    · ≤919px 的 .brand{flex:1 1 0;min-width:0}（英文 tagline 的换行修复）
+    · 全站 data-i18n* 属性、文案 <span> 拆分、[data-img-only] 初态 hidden
+    · 校验方式：把本文件与 src/styles.css、public/*.html 分别解析成
+      「选择器→声明」「标签→class/id」两组集合做逐条 diff，除下述设计稿独有项外应当为空
 -->
 <style>
 /* ==========================================================================
@@ -145,6 +175,39 @@ main{position:relative;z-index:1}
 .pill.ok{background:var(--okS);color:var(--ok);border-color:var(--okL)}
 .pill.warn{background:var(--warnS);color:var(--warn);border-color:var(--warnL)}
 .pill.n{background:var(--sf2);color:var(--i500);border-color:var(--line)}
+
+/* 顶栏右侧的组合：第一行「语言切换 + 仓库入口」，第二行状态 pill。
+   状态 pill 的说法是「补充说明」而不是「并列项」，因此压在操作行下方、右对齐，
+   窄屏仍按 .band 的既有规则隐藏。 */
+.tr{display:inline-flex;flex-direction:column;align-items:flex-end;gap:8px}
+.trr{display:inline-flex;align-items:center;gap:8px}
+
+/* 语言切换：固定显示「中文 / EN」两个候选，当前语言高亮（.cur）、另一个置灰（.alt），
+   点整颗按钮切换。创建页 / 已创建屏 / 查看页各有一颗，样式统一由 .lang 承载 */
+.lang{
+  display:inline-flex;align-items:center;gap:3px;
+  height:24px;padding:0 10px;
+  font-size:11.5px;font-weight:700;letter-spacing:.02em;line-height:1;
+  color:var(--i400);background:var(--sf2);
+  border:1px solid var(--line);border-radius:var(--rp);cursor:pointer;
+  white-space:nowrap;
+  transition:color var(--t),border-color var(--t),background var(--t);
+}
+.lang .cur{color:var(--i800)}
+.lang .sep{color:var(--line2)}
+.lang:hover{border-color:var(--line2);background:var(--sf3)}
+.lang:hover .cur{color:var(--i900)}
+
+/* 仓库入口：紧挨语言切换右侧，做成与 .lang 等高（24px）的方形按钮。
+   按钮内没有可见文案，可读名由 aria-label / title 承载（见 HTML，走 i18n）。 */
+.gh{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:24px;height:24px;flex:none;
+  color:var(--i400);background:var(--sf2);
+  border:1px solid var(--line);border-radius:var(--rp);
+  transition:color var(--t),border-color var(--t),background var(--t);
+}
+.gh:hover{color:var(--i900);border-color:var(--line2);background:var(--sf3)}
 
 /* ==========================================================================
    4. 卡片 / 表单（镜像 §4）
@@ -334,6 +397,18 @@ main{position:relative;z-index:1}
 .st{padding:12px 14px;border:1px solid var(--line);border-radius:var(--rc);background:var(--sf2)}
 .stk{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--i500)}
 .stv{display:block;font-size:13.5px;font-weight:650;color:var(--i900);margin-top:3px}
+/* 已创建：左「二维码」+ 右「状态卡」。≥641px 两栏，≤640px 单列（链接 → 二维码 → 三张卡）。
+   二维码必须纯黑模块 + 纯白底，套品牌色或深色底会掉识别率。 */
+.share{display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px;align-items:center;margin-top:14px}
+.qr{display:grid;justify-items:center;gap:8px}
+/* 216 − 26×2 − 2(边框) = 162px 码面；真实链接 93 字符 / ecc M = 41 模块 → ~3.95px/模块，
+   26px 内边距 ≈ 6.6 个模块的静默区（规范要求 ≥4，别压窄）。
+   静默区只由这里的 padding 提供 —— qr.ts 生成时传的是 border: 0，两者叠加会白占码面。 */
+.qrbox{width:216px;height:216px;padding:26px;border:1px solid var(--line);border-radius:var(--rc);background:#fff;box-shadow:var(--s1)}
+.qrbox svg{display:block;width:100%;height:100%}
+.qrhint{font-size:11.5px;line-height:1.4;color:var(--i500);text-align:center}
+/* 右栏内状态卡竖排：与左侧二维码高度相当，居中对齐后视觉重心落在二维码上 */
+.share .sts{grid-template-columns:minmax(0,1fr);margin-top:0}
 
 /* ==========================================================================
    9. 解锁 / 查看（镜像 §9）
@@ -464,6 +539,10 @@ main{position:relative;z-index:1}
 }
 @media (max-width: 919px){
   .topbar{margin-bottom:20px;flex-wrap:wrap}
+  /* brand 变成可收缩弹性项：英文 tagline 较长时会自然折行，
+     而不是把 .tr 整组挤到下一行（换行判定用的是单行完整宽度，
+     brand 不允许收缩时右侧组永远先被判出局、掉行后还靠左）。 */
+  .brand{flex:1 1 0;min-width:0}
   .h1{font-size:22px}
   .head{margin-bottom:18px}
   .sub{font-size:13px}
@@ -479,6 +558,8 @@ main{position:relative;z-index:1}
 @media (max-width: 640px){
   .frame{padding:24px 16px 80px}
   .band{display:none}
+  /* 640 以内两栏放不下（二维码 200 + 间距后只剩 ~150px 给状态卡），改为竖排 */
+  .share{grid-template-columns:minmax(0,1fr)}
 }
 @media (max-width: 559px){
   .sts{grid-template-columns:1fr}
@@ -515,6 +596,7 @@ main{position:relative;z-index:1}
 .frame.phone .grid{grid-template-columns:minmax(0,1fr);gap:20px}
 .frame.phone .col-b{position:static}
 .frame.phone .topbar{margin-bottom:20px;flex-wrap:wrap}
+.frame.phone .brand{flex:1 1 0;min-width:0}
 .frame.phone .h1{font-size:22px}
 .frame.phone .head{margin-bottom:18px}
 .frame.phone .sub{font-size:13px}
@@ -527,6 +609,8 @@ main{position:relative;z-index:1}
 .frame.phone .btn.lg{padding:15px 22px}
 .frame.phone .band{display:none}
 .frame.phone .sts{grid-template-columns:1fr}
+.frame.phone .share{grid-template-columns:minmax(0,1fr)}
+.frame.phone .qrbox{width:200px;height:200px;padding:24px}
 
 @media (max-width:640px){
   .proto-in{padding:9px 14px}
@@ -557,6 +641,8 @@ main{position:relative;z-index:1}
   <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4.2 6h.01M4.2 12h.01M4.2 18h.01"/></symbol>
   <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8.2" cy="15.2" r="4.2"/><path d="M11.2 12.2l8-8M16 4l3.4 3.4M13.8 6.2l3.4 3.4"/></symbol>
   <symbol id="i-note" viewBox="0 0 24 24"><path d="M5 5.5h14v9.5l-4.6 4.5H5z"/><path d="M19 15h-4.6v4.5"/></symbol>
+  <!-- 品牌标志是实心字形，且不随 .ico 的描边规则走，故在这里就地覆盖 fill / stroke -->
+  <symbol id="i-github" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M12 .5a12 12 0 0 0-3.79 23.39c.6.11.82-.26.82-.58v-2.03c-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.77-1.34-1.77-1.09-.75.08-.73.08-.73 1.2.08 1.84 1.24 1.84 1.24 1.07 1.84 2.81 1.31 3.5 1 .11-.78.42-1.31.76-1.61-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.11-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6.01 0c2.29-1.55 3.3-1.23 3.3-1.23.65 1.66.24 2.88.11 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.8 5.63-5.48 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.22.7.83.58A12 12 0 0 0 12 .5z"/></symbol>
 </svg>
 
 <input class="sr" type="file" id="fileInput" accept="image/*" multiple tabindex="-1" aria-hidden="true">
@@ -591,15 +677,21 @@ main{position:relative;z-index:1}
       <span class="mark"><svg class="ico"><use href="#i-flame"/></svg></span>
       <span>
         <b class="bn">1tmsg</b>
-        <span class="bs">阅后即焚 · 端到端加密</span>
+        <span class="bs" data-i18n="brand.tagline">阅后即焚 · 端到端加密</span>
       </span>
     </div>
-    <span class="pill b band"><svg class="ico ico-13"><use href="#i-shield"/></svg>服务器看不到明文</span>
+    <span class="tr">
+      <span class="trr">
+        <button class="lang" type="button" aria-label="切换到英文" data-i18n-aria-label="lang.toEnglish"><span class="cur">中文</span><span class="sep" aria-hidden="true">/</span><span class="alt">EN</span></button>
+        <a class="gh" href="https://github.com/CJSen/1tmsg" target="_blank" rel="noopener noreferrer" aria-label="在 GitHub 上查看源码" title="在 GitHub 上查看源码" data-i18n-aria-label="nav.github" data-i18n-title="nav.github"><svg class="ico ico-15"><use href="#i-github"/></svg></a>
+      </span>
+      <span class="pill b band"><svg class="ico ico-13"><use href="#i-shield"/></svg><span data-i18n="create.badge">服务器看不到明文</span></span>
+    </span>
   </div>
 
   <div class="head">
-    <h1 class="h1">创建一条秘密消息</h1>
-    <p class="sub">内容在你的浏览器里加密，只有拿到链接（和密码）的人才打开得了；服务器只能保存一段看不懂的密文。</p>
+    <h1 class="h1" data-i18n="create.h1">创建一条秘密消息</h1>
+    <p class="sub" data-i18n="create.sub">内容在你的浏览器里加密，只有拿到链接（和密码）的人才打开得了；服务器只能保存一段看不懂的密文。</p>
   </div>
 
   <div class="grid">
@@ -608,41 +700,45 @@ main{position:relative;z-index:1}
     <div class="col-a">
       <section class="card" id="editorCard">
         <div class="card-hd">
-          <h2><span class="step m-only">1</span>消息内容</h2>
+          <h2><span class="step m-only">1</span><span data-i18n="create.msgTitle">消息内容</span></h2>
           <div class="seg" id="mode">
-            <button type="button" data-mode="edit" aria-pressed="true">编辑</button>
-            <button type="button" data-mode="view" aria-pressed="false">预览</button>
+            <button type="button" data-mode="edit" aria-pressed="true" data-i18n="create.modeEdit">编辑</button>
+            <button type="button" data-mode="view" aria-pressed="false" data-i18n="create.modeView">预览</button>
           </div>
         </div>
 
         <div class="card-bd">
           <div>
             <div class="field-hd">
-              <span class="lbl">备注<span class="optag">可选</span></span>
-              <span class="cnt">仅收件人可见</span>
+              <span class="lbl"><span data-i18n="create.noteLabel">备注</span><span class="optag" data-i18n="create.noteOptional">可选</span></span>
+              <span class="cnt" data-i18n="create.noteSide">仅收件人可见</span>
             </div>
-            <input class="in" id="note" maxlength="120" autocomplete="off" value="给你的那份文件 —— 看完就删，别截图转发。" placeholder="给收件人一句话，例如：给你的那份文件">
+            <input class="in" id="note" maxlength="120" autocomplete="off" value="给你的那份文件 —— 看完就删，别截图转发。" placeholder="给收件人一句话，例如：给你的那份文件" data-i18n-placeholder="create.notePh">
           </div>
 
           <div id="bodyField">
             <div class="field-hd">
-              <span class="lbl">正文</span>
-              <span class="cnt"><span id="count">0</span>&nbsp;字 · Markdown</span>
+              <span class="lbl" data-i18n="create.bodyLabel">正文</span>
+              <span class="cnt"><span id="count">0</span>&nbsp;<span data-i18n="editor.countSuffix">字 · Markdown</span></span>
             </div>
 
             <div class="editor">
               <div class="mdtb">
-                <button class="tbtn" type="button" data-md="bold" title="加粗"><svg class="ico"><use href="#i-bold"/></svg></button>
-                <button class="tbtn" type="button" data-md="italic" title="斜体"><svg class="ico"><use href="#i-italic"/></svg></button>
+                <button class="tbtn" type="button" data-md="bold" title="加粗" data-i18n-title="editor.mdBold"><svg class="ico"><use href="#i-bold"/></svg></button>
+                <button class="tbtn" type="button" data-md="italic" title="斜体" data-i18n-title="editor.mdItalic"><svg class="ico"><use href="#i-italic"/></svg></button>
                 <span class="sp"></span>
-                <button class="tbtn" type="button" data-md="list" title="列表"><svg class="ico"><use href="#i-list"/></svg></button>
-                <button class="tbtn" type="button" data-md="code" title="代码"><svg class="ico"><use href="#i-code"/></svg></button>
-                <button class="tbtn" type="button" data-md="link" title="链接"><svg class="ico"><use href="#i-link"/></svg></button>
-                <span class="sp"></span>
-                <button class="tbtn" type="button" id="pickImg" title="插入图片"><svg class="ico"><use href="#i-img"/></svg></button>
+                <button class="tbtn" type="button" data-md="list" title="列表" data-i18n-title="editor.mdList"><svg class="ico"><use href="#i-list"/></svg></button>
+                <button class="tbtn" type="button" data-md="code" title="代码" data-i18n-title="editor.mdCode"><svg class="ico"><use href="#i-code"/></svg></button>
+                <button class="tbtn" type="button" data-md="link" title="链接" data-i18n-title="editor.mdLink"><svg class="ico"><use href="#i-link"/></svg></button>
+                <!-- 图片入口：是否启用由部署配置（r2_buckets 有无）决定。
+                     静态 HTML 默认就是关闭态（带 hidden），editor.ts 在开关为真时才移除它，
+                     因此「不带图片的版本」即使脚本没跑起来也不会露出入口。
+                     本稿演示的是开启支，故演示脚本会把 [data-img-only] 放出来。 -->
+                <span class="sp" data-img-only hidden></span>
+                <button class="tbtn" type="button" id="pickImg" title="插入图片" data-img-only hidden data-i18n-title="editor.mdImage"><svg class="ico"><use href="#i-img"/></svg></button>
                 <span class="suffix">MD</span>
               </div>
-              <textarea id="md" spellcheck="false" aria-label="消息正文" placeholder="# 标题&#10;&#10;正文支持 **Markdown**、列表、代码块，也可以直接粘贴或拖入图片。"># 季度复盘
+              <textarea id="md" spellcheck="false" aria-label="消息正文" placeholder="# 标题&#10;&#10;正文支持 **Markdown**、列表、代码块。" data-i18n-aria-label="create.bodyAria" data-i18n-placeholder="editor.placeholderPlain"># 季度复盘
 
 **要点**：这个季度我们把注册转化率从 3.1% 提到了 4.6%。
 
@@ -661,9 +757,8 @@ const key = crypto.getRandomValues(new Uint8Array(32));
               <div class="mdv md" id="pv" hidden></div>
             </div>
 
-            <div class="atray" id="atray">
-              <!-- 这里的数值只是首屏兜底，mount 时会由 JS 按 config.ts 覆盖；
-                   历史上此处写的是改造前的 5MB / 10MB，与真实上限脱节。 -->
+            <div class="atray" id="atray" data-img-only hidden>
+              <!-- 数值只是首屏兜底，mount 时会由 editor.ts 按 config.ts 覆盖。 -->
               <span class="atip"><svg class="ico ico-15"><use href="#i-img"/></svg><span id="atipText">拖拽 / 粘贴 / 点图标插入图片，单张 ≤ 100MB，合计 ≤ 200MB，最多 8 张</span></span>
               <div class="thumbs" id="thumbs">
                 <!-- 正式代码初始为空、由 editor.ts 的 thumbNode() 生成；
@@ -676,7 +771,7 @@ const key = crypto.getRandomValues(new Uint8Array(32));
                   <img src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20640%20360'%3E%3Cdefs%3E%3ClinearGradient%20id='g'%20x1='0'%20y1='0'%20x2='1'%20y2='1'%3E%3Cstop%20offset='0'%20stop-color='%23CFE0F5'/%3E%3Cstop%20offset='1'%20stop-color='%238FB2E0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect%20width='640'%20height='360'%20fill='url(%23g)'/%3E%3C/svg%3E" alt="截图-2.png" decoding="async">
                   <button class="x" type="button" data-remove="img-2" title="移除">×</button>
                 </span>
-                <button class="tadd" type="button" title="添加图片"><svg class="ico ico-17"><use href="#i-plus"/></svg></button>
+                <button class="tadd" type="button" title="添加图片" data-i18n-title="editor.addImage"><svg class="ico ico-17"><use href="#i-plus"/></svg></button>
               </div>
             </div>
           </div>
@@ -689,58 +784,58 @@ const key = crypto.getRandomValues(new Uint8Array(32));
 
       <section class="card">
         <div class="card-hd">
-          <h2><span class="step m-only">2</span>查看与销毁</h2>
+          <h2><span class="step m-only">2</span><span data-i18n="create.lifeCard">查看与销毁</span></h2>
         </div>
 
         <div class="card-bd">
           <div class="opt on" id="burnRow">
             <span>
-              <b>阅后即焚</b>
-              <!-- 正式代码里为空，由 create.ts 的 setHint() 填；此处同样交给 JS　（无 JS 时无文案） -->
+              <b data-i18n="create.burn">阅后即焚</b>
+              <!-- 正式代码里为空，由 create.ts 的 setHint() 填；此处同样交给 JS（无 JS 时无文案） -->
               <span id="burnHint"></span>
             </span>
-            <button class="sw" type="button" id="burn" role="switch" aria-checked="true" aria-label="阅后即焚"></button>
+            <button class="sw" type="button" id="burn" role="switch" aria-checked="true" aria-label="阅后即焚" data-i18n-aria-label="create.burn"></button>
           </div>
 
           <div id="viewsField" hidden>
             <div class="field-hd">
-              <span class="lbl">可查看次数</span>
-              <span class="cnt">1 – 100</span>
+              <span class="lbl" data-i18n="create.viewsLabel">可查看次数</span>
+              <span class="cnt" data-i18n="create.viewsSide">1 – 100</span>
             </div>
             <div class="stepper">
-              <button type="button" data-step="-1" aria-label="减少">−</button>
-              <input id="views" value="5" inputmode="numeric" autocomplete="off" aria-label="可查看次数">
-              <button type="button" data-step="1" aria-label="增加">+</button>
+              <button type="button" data-step="-1" aria-label="减少" data-i18n-aria-label="create.viewsDec">−</button>
+              <input id="views" value="5" inputmode="numeric" autocomplete="off" aria-label="可查看次数" data-i18n-aria-label="create.viewsLabel">
+              <button type="button" data-step="1" aria-label="增加" data-i18n-aria-label="create.viewsInc">+</button>
             </div>
           </div>
 
           <div>
             <div class="field-hd">
-              <span class="lbl">过期时间</span>
-              <span class="cnt">最长 7 天</span>
+              <span class="lbl" data-i18n="create.ttlLabel">过期时间</span>
+              <span class="cnt" data-i18n="create.ttlSide">最长 7 天</span>
             </div>
             <div class="chips" id="ttl">
-              <button type="button" data-ttl="3600" aria-pressed="true">1 小时</button>
-              <button type="button" data-ttl="21600" aria-pressed="false">6 小时</button>
-              <button type="button" data-ttl="43200" aria-pressed="false">12 小时</button>
-              <button type="button" data-ttl="86400" aria-pressed="false">1 天</button>
-              <button type="button" data-ttl="259200" aria-pressed="false">3 天</button>
-              <button type="button" data-ttl="604800" aria-pressed="false">7 天</button>
+              <button type="button" data-ttl="3600" aria-pressed="true" data-i18n="ttl.h1">1 小时</button>
+              <button type="button" data-ttl="21600" aria-pressed="false" data-i18n="ttl.h6">6 小时</button>
+              <button type="button" data-ttl="43200" aria-pressed="false" data-i18n="ttl.h12">12 小时</button>
+              <button type="button" data-ttl="86400" aria-pressed="false" data-i18n="ttl.d1">1 天</button>
+              <button type="button" data-ttl="259200" aria-pressed="false" data-i18n="ttl.d3">3 天</button>
+              <button type="button" data-ttl="604800" aria-pressed="false" data-i18n="ttl.d7">7 天</button>
             </div>
           </div>
 
           <div>
             <div class="opt" id="pwRow">
               <span>
-                <b>密码保护</b>
+                <b data-i18n="create.pw">密码保护</b>
                 <span id="pwHint"></span>
               </span>
-              <button class="sw" type="button" id="pw" role="switch" aria-checked="false" aria-label="密码保护"></button>
+              <button class="sw" type="button" id="pw" role="switch" aria-checked="false" aria-label="密码保护" data-i18n-aria-label="create.pw"></button>
             </div>
             <div id="pwField" class="mt10" hidden>
               <div class="wrap">
-                <input class="in" id="pwd" type="password" placeholder="设置一个密码（至少 6 位）" autocomplete="new-password">
-                <button class="eye" type="button" id="eye" aria-label="显示密码"><svg class="ico"><use href="#i-eye"/></svg></button>
+                <input class="in" id="pwd" type="password" placeholder="设置一个密码（至少 6 位）" autocomplete="new-password" data-i18n-placeholder="create.pwPh">
+                <button class="eye" type="button" id="eye" aria-label="显示密码" data-i18n-aria-label="create.pwShow"><svg class="ico"><use href="#i-eye"/></svg></button>
               </div>
               <div class="str" data-s="0"><i></i><i></i><i></i><i></i></div>
             </div>
@@ -752,11 +847,11 @@ const key = crypto.getRandomValues(new Uint8Array(32));
       <div class="act">
         <div class="sum" id="sum" aria-live="polite"></div>
         <button class="btn pri lg block" type="button" id="create">
-          <svg class="ico"><use href="#i-flame"/></svg><span>创建并复制链接</span>
+          <svg class="ico"><use href="#i-flame"/></svg><span data-i18n="create.submit">创建并复制链接</span>
         </button>
         <p class="micro">
           <svg class="ico ico-13"><use href="#i-lock"/></svg>
-          AES-256-GCM 本地加密，密钥不会离开你的浏览器
+          <span data-i18n="create.micro">AES-256-GCM 本地加密，密钥不会离开你的浏览器</span>
         </p>
       </div>
 
@@ -767,49 +862,88 @@ const key = crypto.getRandomValues(new Uint8Array(32));
 
 <!-- =====================================================================
      02 已创建（分享）· 对应 public/index.html 的 #sentScreen
+     ≥641px：链接 / 左「二维码」+ 右「三张状态卡（竖排）」 / 提示条 / 再创建一条
+     ≤640px：链接 / 二维码 / 三张状态卡 依次竖排（二维码从侧栏落到链接正下方）
      ===================================================================== -->
 <section class="screen" id="s-sent">
 <div class="frame narrow">
+
+  <div class="topbar">
+    <div class="brand">
+      <span class="mark"><svg class="ico"><use href="#i-flame"/></svg></span>
+      <span>
+        <b class="bn">1tmsg</b>
+        <span class="bs" data-i18n="brand.tagline">阅后即焚 · 端到端加密</span>
+      </span>
+    </div>
+    <!-- 这一屏没有状态 pill：右上只有语言切换 + 仓库入口 -->
+    <span class="tr">
+      <span class="trr">
+        <button class="lang" type="button" aria-label="切换到英文" data-i18n-aria-label="lang.toEnglish"><span class="cur">中文</span><span class="sep" aria-hidden="true">/</span><span class="alt">EN</span></button>
+        <a class="gh" href="https://github.com/CJSen/1tmsg" target="_blank" rel="noopener noreferrer" aria-label="在 GitHub 上查看源码" title="在 GitHub 上查看源码" data-i18n-aria-label="nav.github" data-i18n-title="nav.github"><svg class="ico ico-15"><use href="#i-github"/></svg></a>
+      </span>
+    </span>
+  </div>
+
   <section class="card">
     <div class="card-bd lg">
       <div class="center">
         <div class="okico"><svg class="ico"><use href="#i-check"/></svg></div>
-        <h1 class="h1">消息已创建</h1>
-        <p class="sub center-block">把链接发给对方就好。链接中 <em>#</em> 后面那段是解密密钥，它只存在于链接里，不会被发送到服务器。</p>
+        <h1 class="h1" data-i18n="sent.h1">消息已创建</h1>
+        <p class="sub center-block"><span data-i18n="sent.sub1">把链接发给对方就好。链接中</span> <em>#</em> <span data-i18n="sent.sub2">后面那段是解密密钥，它只存在于链接里，不会被发送到服务器。</span></p>
       </div>
 
       <!-- 正式代码里 <code> 由 showSent() 填入：base(host+path) + <em>#fragment</em>，title 存完整链接 -->
       <div class="linkbox">
         <code id="sentLink" title="https://1tmsg.pages.dev/m/AbCdEf#v1.k7fQ2x9Mp">1tmsg.pages.dev/m/AbCdEf<em>#v1.k7fQ2x9Mp</em></code>
-        <button class="btn pri" type="button" id="sentCopy"><svg class="ico"><use href="#i-copy"/></svg><span>复制</span></button>
+        <button class="btn pri" type="button" id="sentCopy"><svg class="ico"><use href="#i-copy"/></svg><span data-i18n="sent.copy">复制</span></button>
       </div>
 
-      <div class="sts">
-        <div class="st">
-          <span class="stk"><svg class="ico"><use href="#i-flame"/></svg>阅后即焚</span>
-          <b class="stv" id="sentBurn">查看 1 次后销毁</b>
+      <!-- 二维码：编码的就是上面那条完整链接（含 # 之后的解密密钥）。此处是内联 SVG 占位
+           （25×25 模块 + 三个定位图案），保持 0 外部请求；正式代码由 qr.ts 现场生成
+           （真实链接 41 模块），落点是 create.ts —— 取 el('sentLink').title，
+           DOM 文本已被 <em> 拆成 base + fragment 两段，别从文本拼。
+           硬要求：纯黑模块 / 纯白底；静默区由 .qrbox 的 26px 内边距提供（故 qr.ts 传 border: 0）。
+           外域生成服务一律不可用：CSP 只放行 self / data:，且 # 后是密钥，不能出本机。 -->
+      <div class="share">
+        <div class="qr" id="qr">
+          <div class="qrbox" id="qrbox">
+            <svg viewBox="0 0 25 25" role="img" aria-label="消息链接二维码" data-i18n-aria-label="sent.qrAria" shape-rendering="crispEdges" focusable="false">
+              <rect width="25" height="25" fill="#fff"/>
+              <path fill="#1A1513" d="M0 0h7v1h-7zM11 0h5v1h-5zM18 0h7v1h-7zM0 1h1v1h-1zM6 1h1v1h-1zM9 1h5v1h-5zM15 1h1v1h-1zM18 1h1v1h-1zM24 1h1v1h-1zM0 2h1v1h-1zM2 2h3v1h-3zM6 2h1v1h-1zM9 2h1v1h-1zM11 2h3v1h-3zM15 2h2v1h-2zM18 2h1v1h-1zM20 2h3v1h-3zM24 2h1v1h-1zM0 3h1v1h-1zM2 3h3v1h-3zM6 3h1v1h-1zM8 3h4v1h-4zM13 3h1v1h-1zM18 3h1v1h-1zM20 3h3v1h-3zM24 3h1v1h-1zM0 4h1v1h-1zM2 4h3v1h-3zM6 4h1v1h-1zM9 4h3v1h-3zM14 4h2v1h-2zM18 4h1v1h-1zM20 4h3v1h-3zM24 4h1v1h-1zM0 5h1v1h-1zM6 5h1v1h-1zM11 5h4v1h-4zM18 5h1v1h-1zM24 5h1v1h-1zM0 6h7v1h-7zM8 6h1v1h-1zM10 6h1v1h-1zM12 6h1v1h-1zM14 6h1v1h-1zM16 6h1v1h-1zM18 6h7v1h-7zM8 7h3v1h-3zM15 7h1v1h-1zM0 8h1v1h-1zM4 8h1v1h-1zM6 8h3v1h-3zM10 8h4v1h-4zM15 8h1v1h-1zM17 8h1v1h-1zM21 8h2v1h-2zM24 8h1v1h-1zM2 9h3v1h-3zM7 9h2v1h-2zM11 9h2v1h-2zM14 9h1v1h-1zM16 9h2v1h-2zM19 9h2v1h-2zM23 9h1v1h-1zM0 10h1v1h-1zM3 10h7v1h-7zM16 10h2v1h-2zM20 10h1v1h-1zM22 10h1v1h-1zM5 11h1v1h-1zM8 11h2v1h-2zM13 11h1v1h-1zM16 11h1v1h-1zM18 11h1v1h-1zM23 11h2v1h-2zM0 12h2v1h-2zM6 12h1v1h-1zM8 12h1v1h-1zM11 12h1v1h-1zM14 12h2v1h-2zM17 12h3v1h-3zM23 12h1v1h-1zM5 13h1v1h-1zM8 13h2v1h-2zM11 13h1v1h-1zM14 13h3v1h-3zM18 13h2v1h-2zM21 13h2v1h-2zM0 14h2v1h-2zM4 14h5v1h-5zM10 14h1v1h-1zM12 14h1v1h-1zM14 14h1v1h-1zM21 14h1v1h-1zM23 14h2v1h-2zM4 15h1v1h-1zM10 15h1v1h-1zM12 15h1v1h-1zM14 15h2v1h-2zM19 15h1v1h-1zM21 15h1v1h-1zM0 16h2v1h-2zM3 16h2v1h-2zM6 16h1v1h-1zM8 16h1v1h-1zM10 16h1v1h-1zM12 16h1v1h-1zM14 16h10v1h-10zM9 17h6v1h-6zM16 17h1v1h-1zM20 17h2v1h-2zM23 17h2v1h-2zM0 18h7v1h-7zM10 18h1v1h-1zM15 18h2v1h-2zM18 18h1v1h-1zM20 18h2v1h-2zM24 18h1v1h-1zM0 19h1v1h-1zM6 19h1v1h-1zM8 19h1v1h-1zM10 19h3v1h-3zM16 19h1v1h-1zM20 19h1v1h-1zM22 19h2v1h-2zM0 20h1v1h-1zM2 20h3v1h-3zM6 20h1v1h-1zM8 20h4v1h-4zM16 20h6v1h-6zM24 20h1v1h-1zM0 21h1v1h-1zM2 21h3v1h-3zM6 21h1v1h-1zM8 21h3v1h-3zM13 21h1v1h-1zM15 21h1v1h-1zM18 21h1v1h-1zM22 21h2v1h-2zM0 22h1v1h-1zM2 22h3v1h-3zM6 22h1v1h-1zM9 22h1v1h-1zM12 22h1v1h-1zM16 22h4v1h-4zM24 22h1v1h-1zM0 23h1v1h-1zM6 23h1v1h-1zM9 23h2v1h-2zM12 23h2v1h-2zM15 23h1v1h-1zM17 23h1v1h-1zM21 23h2v1h-2zM0 24h7v1h-7zM15 24h1v1h-1zM17 24h1v1h-1zM21 24h2v1h-2zM24 24h1v1h-1z"/>
+            </svg>
+          </div>
+          <span class="qrhint" data-i18n="sent.qrHint">扫码在手机上打开</span>
         </div>
-        <div class="st">
-          <span class="stk"><svg class="ico"><use href="#i-clock"/></svg>过期时间</span>
-          <b class="stv" id="sentTtl">1 小时后失效</b>
-        </div>
-        <div class="st">
-          <span class="stk"><svg class="ico"><use href="#i-key"/></svg>解密密钥</span>
-          <b class="stv" id="sentKey">仅在链接里</b>
+
+        <!-- 三张卡：开启焚毁时「阅后即焚」直接给出次数结论，关闭时给出可查看上限（见 01 创建页） -->
+        <div class="sts">
+          <div class="st">
+            <span class="stk"><svg class="ico"><use href="#i-flame"/></svg><span data-i18n="sent.burnKey">阅后即焚</span></span>
+            <b class="stv" id="sentBurn">查看 1 次后销毁</b>
+          </div>
+          <div class="st">
+            <span class="stk"><svg class="ico"><use href="#i-clock"/></svg><span data-i18n="sent.ttlKey">过期时间</span></span>
+            <b class="stv" id="sentTtl">1 小时后失效</b>
+          </div>
+          <div class="st">
+            <span class="stk"><svg class="ico"><use href="#i-key"/></svg><span data-i18n="sent.keyKey">解密密钥</span></span>
+            <b class="stv" id="sentKey">仅在链接里</b>
+          </div>
         </div>
       </div>
 
       <div class="notice warn mt16">
         <svg class="ico"><use href="#i-alert"/></svg>
-        <span>请通过可信渠道发送。<b>任何拿到链接的人都能查看这条消息</b>，链接转发后无法撤回。</span>
+        <span><span data-i18n="sent.warn1">请通过可信渠道发送。</span><b data-i18n="sent.warn2">任何拿到链接的人都能查看这条消息</b><span data-i18n="sent.warn3">，链接转发后无法撤回。</span></span>
       </div>
 
       <div class="notice info mt10">
         <svg class="ico"><use href="#i-shield"/></svg>
-        <span>服务器上只存了密文和过期时间。即使数据库泄露，也读不出你和对方说了什么。</span>
+        <span data-i18n="sent.info">服务器上只存了密文和过期时间。即使数据库泄露，也读不出你和对方说了什么。</span>
       </div>
 
-      <button class="btn out block mt18" type="button" id="again">再创建一条</button>
+      <button class="btn out block mt18" type="button" id="again" data-i18n="sent.again">再创建一条</button>
     </div>
   </section>
 </div>
@@ -826,45 +960,51 @@ const key = crypto.getRandomValues(new Uint8Array(32));
       <span class="mark"><svg class="ico"><use href="#i-flame"/></svg></span>
       <span>
         <b class="bn">1tmsg</b>
-        <span class="bs">阅后即焚 · 端到端加密</span>
+        <span class="bs" data-i18n="brand.tagline">阅后即焚 · 端到端加密</span>
       </span>
     </div>
-    <span class="pill n"><svg class="ico ico-13"><use href="#i-lock"/></svg>密文仅在本地解密</span>
+    <span class="tr">
+      <span class="trr">
+        <button class="lang" type="button" aria-label="切换到英文" data-i18n-aria-label="lang.toEnglish"><span class="cur">中文</span><span class="sep" aria-hidden="true">/</span><span class="alt">EN</span></button>
+        <a class="gh" href="https://github.com/CJSen/1tmsg" target="_blank" rel="noopener noreferrer" aria-label="在 GitHub 上查看源码" title="在 GitHub 上查看源码" data-i18n-aria-label="nav.github" data-i18n-title="nav.github"><svg class="ico ico-15"><use href="#i-github"/></svg></a>
+      </span>
+      <span class="pill n band"><svg class="ico ico-13"><use href="#i-lock"/></svg><span data-i18n="view.badge">密文仅在本地解密</span></span>
+    </span>
   </div>
 
   <section class="card" id="stateUnlock">
     <div class="card-bd lg">
       <div class="center">
         <div class="lockico"><svg class="ico"><use href="#i-lock"/></svg></div>
-        <h1 class="h1">这条消息受密码保护</h1>
-        <p class="sub center-block">输入发送者给你的密码。密码不会发送到服务器，验证与解密都在你的浏览器里完成。</p>
+        <h1 class="h1" data-i18n="view.unlockTitle">这条消息受密码保护</h1>
+        <p class="sub center-block" data-i18n="view.unlockSub">输入发送者给你的密码。密码不会发送到服务器，验证与解密都在你的浏览器里完成。</p>
       </div>
 
       <div class="mt22">
         <div class="field-hd">
-          <span class="lbl">密码</span>
-          <span class="cnt">解密成功后才会计入查看次数</span>
+          <span class="lbl" data-i18n="view.pwLabel">密码</span>
+          <span class="cnt" data-i18n="view.pwSide">解密成功后才会计入查看次数</span>
         </div>
         <div class="wrap">
-          <input class="in" id="pwd2" type="password" placeholder="输入密码" autocomplete="off">
-          <button class="eye" type="button" id="eye2" aria-label="显示密码"><svg class="ico"><use href="#i-eye"/></svg></button>
+          <input class="in" id="pwd2" type="password" placeholder="输入密码" autocomplete="off" data-i18n-placeholder="view.pwPh">
+          <button class="eye" type="button" id="eye2" aria-label="显示密码" data-i18n-aria-label="create.pwShow"><svg class="ico"><use href="#i-eye"/></svg></button>
         </div>
       </div>
 
       <p class="notice dan mt14" id="unlockError" hidden></p>
 
       <button class="btn pri lg block mt14" type="button" id="unlockBtn">
-        <svg class="ico"><use href="#i-lock"/></svg><span>解密并查看</span>
+        <svg class="ico"><use href="#i-lock"/></svg><span data-i18n="view.unlockBtn">解密并查看</span>
       </button>
 
       <div class="notice warn mt14">
         <svg class="ico"><use href="#i-alert"/></svg>
-        <span>密码错误不会消耗查看次数；<b>只有解密成功那一次才算</b>。</span>
+        <span><span data-i18n="view.unlockWarn1">密码错误不会消耗查看次数；</span><b data-i18n="view.unlockWarn2">只有解密成功那一次才算</b><span data-i18n="view.unlockWarn3">。</span></span>
       </div>
 
       <p class="micro mt14">
         <svg class="ico ico-13"><use href="#i-shield"/></svg>
-        PBKDF2 → HKDF → AES-256-GCM，全程本地执行
+        <span data-i18n="view.unlockMicro">PBKDF2 → HKDF → AES-256-GCM，全程本地执行</span>
       </p>
     </div>
   </section>
@@ -884,20 +1024,28 @@ const key = crypto.getRandomValues(new Uint8Array(32));
       <span class="mark"><svg class="ico"><use href="#i-flame"/></svg></span>
       <span>
         <b class="bn">1tmsg</b>
-        <span class="bs">阅后即焚 · 端到端加密</span>
+        <span class="bs" data-i18n="brand.tagline">阅后即焚 · 端到端加密</span>
       </span>
     </div>
-    <span class="pill n"><svg class="ico ico-13"><use href="#i-lock"/></svg>密文仅在本地解密</span>
+    <span class="tr">
+      <span class="trr">
+        <button class="lang" type="button" aria-label="切换到英文" data-i18n-aria-label="lang.toEnglish"><span class="cur">中文</span><span class="sep" aria-hidden="true">/</span><span class="alt">EN</span></button>
+        <a class="gh" href="https://github.com/CJSen/1tmsg" target="_blank" rel="noopener noreferrer" aria-label="在 GitHub 上查看源码" title="在 GitHub 上查看源码" data-i18n-aria-label="nav.github" data-i18n-title="nav.github"><svg class="ico ico-15"><use href="#i-github"/></svg></a>
+      </span>
+      <span class="pill n band"><svg class="ico ico-13"><use href="#i-lock"/></svg><span data-i18n="view.badge">密文仅在本地解密</span></span>
+    </span>
   </div>
 
   <section class="card" id="stateRead">
     <div class="rbar">
-      <span class="pill b"><svg class="ico ico-13"><use href="#i-lock"/></svg><span id="readBadgeText">阅后即焚 · 已销毁</span></span>
+      <!-- 首屏文案是「已在本地解密」，renderBadge() 立刻按状态换成
+           「阅后即焚 · 已销毁」或「已在本地解密 · 还可查看 N 次」；本稿演示前者 -->
+      <span class="pill b"><svg class="ico ico-13"><use href="#i-lock"/></svg><span id="readBadgeText" data-i18n="view.badgeLocal">已在本地解密</span></span>
       <span class="rgroup">
         <!-- #readExpiry 由 startCountdown() 每秒写入，值形如「53:12 后失效」 -->
         <span class="cnt"><svg class="ico ico-13"><use href="#i-clock"/></svg><span id="readExpiry">53:12 后失效</span></span>
-        <button class="cpbtn" type="button" id="copyTop" aria-label="复制全部内容">
-          <svg class="ico ico-13"><use href="#i-copy"/></svg><span>复制</span>
+        <button class="cpbtn" type="button" id="copyTop" aria-label="复制全部内容" data-i18n-aria-label="view.copyAria">
+          <svg class="ico ico-13"><use href="#i-copy"/></svg><span data-i18n="view.copy">复制</span>
         </button>
       </span>
     </div>
@@ -940,23 +1088,23 @@ const key = crypto.getRandomValues(new Uint8Array(32));
         <p>相关说明见 <a href="#">内部文档</a>，已作废的 <del>旧流程</del> 不再维护。</p>
       </div>
       <button class="btn out block" type="button" id="copyBottom">
-        <svg class="ico"><use href="#i-copy"/></svg><span>复制全部内容</span>
+        <svg class="ico"><use href="#i-copy"/></svg><span data-i18n="view.copyAll">复制全部内容</span>
       </button>
     </div>
 
     <div class="rdone" id="readDone">
       <svg class="ico"><use href="#i-trash"/></svg>
-      <span>这是一条阅后即焚消息，服务器上的密文<b>已经删除</b>。请不要关闭或刷新页面，否则内容无法再次打开。</span>
+      <span><span data-i18n="view.readDone1">这是一条阅后即焚消息，服务器上的密文</span><b data-i18n="view.readDone2">已经删除</b><span data-i18n="view.readDone3">。请不要关闭或刷新页面，否则内容无法再次打开。</span></span>
     </div>
 
     <div class="cta">
-      <p class="ctat">也想安全地发一条？</p>
+      <p class="ctat" data-i18n="view.ctaTitle">也想安全地发一条？</p>
       <a class="btn pri block" href="#" data-goto="create">
-        <svg class="ico"><use href="#i-flame"/></svg><span>我也要创建一条</span>
+        <svg class="ico"><use href="#i-flame"/></svg><span data-i18n="view.ctaBtn">我也要创建一条</span>
       </a>
       <p class="micro">
         <svg class="ico ico-13"><use href="#i-shield"/></svg>
-        无需注册 · 内容只在浏览器加解密 · 打开一次即销毁
+        <span data-i18n="view.ctaMicro">无需注册 · 内容只在浏览器加解密 · 打开一次即销毁</span>
       </p>
     </div>
   </section>
@@ -969,6 +1117,25 @@ const key = crypto.getRandomValues(new Uint8Array(32));
      ===================================================================== -->
 <section class="screen" id="s-states">
 <div class="frame narrow">
+
+  <!-- 正式代码里这三种状态与 03 / 04 同页，共用同一个顶栏 -->
+  <div class="topbar">
+    <div class="brand">
+      <span class="mark"><svg class="ico"><use href="#i-flame"/></svg></span>
+      <span>
+        <b class="bn">1tmsg</b>
+        <span class="bs" data-i18n="brand.tagline">阅后即焚 · 端到端加密</span>
+      </span>
+    </div>
+    <span class="tr">
+      <span class="trr">
+        <button class="lang" type="button" aria-label="切换到英文" data-i18n-aria-label="lang.toEnglish"><span class="cur">中文</span><span class="sep" aria-hidden="true">/</span><span class="alt">EN</span></button>
+        <a class="gh" href="https://github.com/CJSen/1tmsg" target="_blank" rel="noopener noreferrer" aria-label="在 GitHub 上查看源码" title="在 GitHub 上查看源码" data-i18n-aria-label="nav.github" data-i18n-title="nav.github"><svg class="ico ico-15"><use href="#i-github"/></svg></a>
+      </span>
+      <span class="pill n band"><svg class="ico ico-13"><use href="#i-lock"/></svg><span data-i18n="view.badge">密文仅在本地解密</span></span>
+    </span>
+  </div>
+
   <div class="stack">
 
     <!-- 加载中 -->
@@ -976,8 +1143,8 @@ const key = crypto.getRandomValues(new Uint8Array(32));
       <div class="card-bd lg">
         <div class="center">
           <div class="spin" role="presentation"></div>
-          <h1 class="h1" id="loadingTitle">正在准备解密</h1>
-          <p class="sub center-block" id="loadingBody">读取链接里的密钥，并向服务器确认这条消息的状态。</p>
+          <h1 class="h1" id="loadingTitle" data-i18n="view.loadingTitle">正在准备解密</h1>
+          <p class="sub center-block" id="loadingBody" data-i18n="view.loadingBody">读取链接里的密钥，并向服务器确认这条消息的状态。</p>
         </div>
       </div>
     </section>
@@ -987,14 +1154,15 @@ const key = crypto.getRandomValues(new Uint8Array(32));
       <div class="card-bd lg">
         <div class="center">
           <div class="fatalico"><svg class="ico"><use href="#i-alert"/></svg></div>
-          <h1 class="h1" id="fatalTitle">无法打开这条消息</h1>
+          <h1 class="h1" id="fatalTitle" data-i18n="view.fatalTitle">无法打开这条消息</h1>
+          <!-- #fatalBody 在正式代码里为空，由 view.ts 按失败原因填；此处演示「已过期」那一条 -->
           <p class="sub center-block" id="fatalBody">它已超过设定的过期时间，服务器上的密文已被删除。</p>
         </div>
         <div class="notice info mt18">
           <svg class="ico"><use href="#i-shield"/></svg>
-          <span>解密密钥只存在于原始链接的 <b>#</b> 之后。服务器从未见过它，因此也无法帮你恢复被截断的链接。</span>
+          <span><span data-i18n="view.fatalNote1">解密密钥只存在于原始链接的</span> <b>#</b> <span data-i18n="view.fatalNote2">之后。服务器从未见过它，因此也无法帮你恢复被截断的链接。</span></span>
         </div>
-        <a class="btn out block mt18" href="#" data-goto="create">创建一条新消息</a>
+        <a class="btn out block mt18" href="#" data-goto="create" data-i18n="view.createNew">创建一条新消息</a>
       </div>
     </section>
 
@@ -1209,6 +1377,12 @@ const mdEl = el('md'), pv = el('pv'), count = el('count');
 const bodyField = el('bodyField'), thumbs = el('thumbs'), tray = el('atray');
 const fileInput = el('fileInput'), editorCard = el('editorCard');
 let caret = 0, previewing = false, seq = 2;
+
+/* editor.ts 挂载：__ENABLE_IMAGES__ 为真时放开 [data-img-only]、并把正文占位符换成
+   带图片的那一版（editor.placeholderImage）。本稿演示的就是「图片已启用」这一支，
+   静态 HTML 里它们是关闭态（hidden），与正式代码逐字一致。 */
+for (const node of document.querySelectorAll('[data-img-only]')) node.hidden = false;
+mdEl.placeholder = '# 标题\n\n正文支持 **Markdown**、列表、代码块，也可以直接粘贴或拖入图片。';
 
 const tips = maybe('atipText');
 if (tips) {

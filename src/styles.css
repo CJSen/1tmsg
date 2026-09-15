@@ -325,6 +325,18 @@ main { position: relative; z-index: 1 }
 .st { padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--rc); background: var(--sf2) }
 .stk { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--i500) }
 .stv { display: block; font-size: 13.5px; font-weight: 650; color: var(--i900); margin-top: 3px }
+/* 已创建：左「二维码」+ 右「状态卡」。≥641px 两栏，≤640px 单列（链接 → 二维码 → 三张卡）。
+   二维码必须纯黑模块 + 纯白底，套品牌色或深色底会掉识别率。 */
+.share { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px; align-items: center; margin-top: 14px }
+.qr { display: grid; justify-items: center; gap: 8px }
+/* 216 − 26×2 − 2(边框) = 162px 码面；真实链接 93 字符 / ecc M = 41 模块 → ~3.95px/模块，
+   26px 内边距 ≈ 6.6 个模块的静默区（规范要求 ≥4，别压窄）。
+   静默区只由这里的 padding 提供 —— qr.ts 生成时传的是 border: 0，两者叠加会白占码面。 */
+.qrbox { width: 216px; height: 216px; padding: 26px; border: 1px solid var(--line); border-radius: var(--rc); background: #fff; box-shadow: var(--s1) }
+.qrbox svg { display: block; width: 100%; height: 100% }
+.qrhint { font-size: 11.5px; line-height: 1.4; color: var(--i500); text-align: center }
+/* 右栏内状态卡竖排：与左侧二维码高度相当，居中对齐后视觉重心落在二维码上 */
+.share .sts { grid-template-columns: minmax(0, 1fr); margin-top: 0 }
 
 /* ==========================================================================
    9. 解锁 / 查看
@@ -474,6 +486,8 @@ main { position: relative; z-index: 1 }
 @media (max-width: 640px) {
   .frame { padding: 24px 16px 80px }
   .band { display: none }
+  /* 640 以内两栏放不下（二维码 216 + 间距后只剩 ~150px 给状态卡），改为竖排 */
+  .share { grid-template-columns: minmax(0, 1fr) }
 }
 @media (max-width: 559px) {
   .sts { grid-template-columns: 1fr }

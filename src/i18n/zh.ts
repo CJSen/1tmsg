@@ -137,6 +137,8 @@ export const zh = {
   'sent.copy': '复制',
   'sent.copied': '已复制',
   'sent.copyFailed': '复制失败',
+  'sent.qrHint': '扫码在手机上打开',
+  'sent.qrAria': '消息链接二维码',
   'sent.burnKey': '阅后即焚',
   'sent.burnVal': '查看 {n} 次后销毁||查看 {n} 次后销毁',
   'sent.ttlKey': '过期时间',

@@ -125,6 +125,8 @@ export const en: Record<MsgKey, string> = {
   'sent.copy': 'Copy',
   'sent.copied': 'Copied',
   'sent.copyFailed': 'Copy failed',
+  'sent.qrHint': 'Scan to open on your phone',
+  'sent.qrAria': 'QR code for the message link',
   'sent.burnKey': 'Burn after reading',
   'sent.burnVal': 'Destroyed after {n} view||Destroyed after {n} views',
   'sent.ttlKey': 'Expires in',

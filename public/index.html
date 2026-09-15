@@ -235,18 +235,26 @@
         <button class="btn pri" type="button" id="sentCopy"><svg class="ico"><use href="#i-copy"/></svg><span data-i18n="sent.copy">复制</span></button>
       </div>
 
-      <div class="sts">
-        <div class="st">
-          <span class="stk"><svg class="ico"><use href="#i-flame"/></svg><span data-i18n="sent.burnKey">阅后即焚</span></span>
-          <b class="stv" id="sentBurn">查看 1 次后销毁</b>
+      <!-- 二维码由 create.ts 在创建成功后写入（动态 import 的 qr.ts），拉不下模块时整块收起 -->
+      <div class="share">
+        <div class="qr" id="qr">
+          <div class="qrbox" id="qrbox"></div>
+          <span class="qrhint" data-i18n="sent.qrHint">扫码在手机上打开</span>
         </div>
-        <div class="st">
-          <span class="stk"><svg class="ico"><use href="#i-clock"/></svg><span data-i18n="sent.ttlKey">过期时间</span></span>
-          <b class="stv" id="sentTtl">1 小时后失效</b>
-        </div>
-        <div class="st">
-          <span class="stk"><svg class="ico"><use href="#i-key"/></svg><span data-i18n="sent.keyKey">解密密钥</span></span>
-          <b class="stv" id="sentKey">仅在链接里</b>
+
+        <div class="sts">
+          <div class="st">
+            <span class="stk"><svg class="ico"><use href="#i-flame"/></svg><span data-i18n="sent.burnKey">阅后即焚</span></span>
+            <b class="stv" id="sentBurn">查看 1 次后销毁</b>
+          </div>
+          <div class="st">
+            <span class="stk"><svg class="ico"><use href="#i-clock"/></svg><span data-i18n="sent.ttlKey">过期时间</span></span>
+            <b class="stv" id="sentTtl">1 小时后失效</b>
+          </div>
+          <div class="st">
+            <span class="stk"><svg class="ico"><use href="#i-key"/></svg><span data-i18n="sent.keyKey">解密密钥</span></span>
+            <b class="stv" id="sentKey">仅在链接里</b>
+          </div>
         </div>
       </div>
 

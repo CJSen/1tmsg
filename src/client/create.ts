@@ -274,6 +274,13 @@ async function onCreate(): Promise<void> {
     return;
   }
 
+  /*
+   * 走到这里就注定要去「已创建」屏了（中途失败重来也只是白下 2KB），
+   * 而下面的 PBKDF2 与图片上传通常要几百毫秒 —— 趁这段时间把二维码生成器拉下来，
+   * 切屏时二维码就是现成的，不会先闪一个空方框。
+   */
+  const qrModule = import('./qr');
+
   /** 中途失败时用于回滚：把半条消息连同已上传的 R2 对象一起清掉 */
   let messageId = '';
   setBusy(createBtn, true);
@@ -362,6 +369,7 @@ async function onCreate(): Promise<void> {
        弹窗会一直压在「消息已创建」页面上 */
     hideProgress();
     showSent(link, base, fragment, burn ? 1 : clampViews(viewsInput.value), withPassword);
+    void fillQr(qrModule, link);
     const copied = await copyText(link);
     if (!copied) toast(t('create.errAutoCopy'), 'error');
   } catch (err) {
@@ -394,6 +402,32 @@ async function onCreate(): Promise<void> {
 
 /** 已创建页的动态值：语言切换时要用当前语言重算一遍 */
 let sentState: { maxViews: number; withPassword: boolean } | null = null;
+
+/** 已经画出来的二维码节点；语言切换时要拿它刷新 aria-label */
+let qrSvg: SVGElement | null = null;
+
+/** qr.ts 里用得上的那一个函数。写窄一点，省掉一个 import type */
+type QrModule = {
+  renderQr: (host: HTMLElement, text: string, ariaLabel: string) => SVGElement;
+};
+
+/**
+ * 把二维码填进已创建屏。
+ *
+ * 单独 try/catch，**不能**并进 onCreate 那个 catch —— 那边会回滚消息、弹「创建失败」，
+ * 而二维码拉不下来只是少了个扫码入口（复制按钮与链接照旧可用）。
+ * 这里唯一会失败的事就是把模块拉下来（离线 / 被拦截），所以失败就整块收起，
+ * 不留一个空白方框。
+ */
+async function fillQr(pending: Promise<QrModule>, link: string): Promise<void> {
+  try {
+    const { renderQr } = await pending;
+    qrSvg = renderQr(el('qrbox'), link, t('sent.qrAria'));
+  } catch (err) {
+    show(el('qr'), false);
+    console.error('[1tmsg] qr failed', err);
+  }
+}
 
 function renderSentSummary(): void {
   if (!sentState) return;
@@ -450,4 +484,6 @@ el('again').addEventListener('click', () => {
 onLocaleChange(renderSummary);
 onLocaleChange(renderConfigHints);
 onLocaleChange(renderSentSummary);
+/* 二维码节点也是 JS 建的，它的 aria-label 跟着语言走 */
+onLocaleChange(() => qrSvg?.setAttribute('aria-label', t('sent.qrAria')));
 void initLocale();
