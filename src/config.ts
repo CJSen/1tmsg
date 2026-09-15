@@ -35,7 +35,11 @@ export const ATTACHMENT_ID_MAX = 64;
 export const MIN_PASSWORD_LENGTH = 6;
 export const PBKDF2_ITERATIONS = 210_000;
 export const PBKDF2_SALT_BYTES = 16;
-/** 连续验密失败达到该次数后锁定消息，防止在线爆破 */
+/**
+ * **连续**验密失败达到该次数后锁定消息，防止在线爆破。
+ * 成功验密会把计数清零，所以这是「连着输错几次」而非消息生命周期内的累计值。
+ * 锁定的消息不再可查看、不可恢复，只能等到期后由 Alarm 销毁。
+ */
 export const MAX_FAILED_UNLOCK = 10;
 
 /* 密钥字节数 */

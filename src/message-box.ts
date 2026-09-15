@@ -52,7 +52,9 @@ export type ConsumeFailure =
 
 export type ConsumeResult =
   | { ok: true; data: ConsumeResponse }
-  | { ok: false; reason: ConsumeFailure };
+  /* 密码错误但还有机会：带上剩余次数，供界面提示「还有 n 次将锁定」 */
+  | { ok: false; reason: 'bad_password'; attemptsRemaining: number }
+  | { ok: false; reason: Exclude<ConsumeFailure, 'bad_password'> };
 
 /** 上传阶段的失败原因 */
 export type UploadFailure = 'gone' | 'bad_token' | 'bad_aid' | 'too_large';
@@ -416,6 +418,7 @@ export class MessageBox extends DurableObject<Env> {
   /**
    * 原子消费：检查 → 验密码 → 计数 → （可选）销毁 → 返回文本密文与读取令牌。
    * 密码消息必须先在服务端过 verifier，错误不消耗查看次数（spec §12 / mockup 文案）。
+   * 连续错误达 MAX_FAILED_UNLOCK 次即锁定（成功验密会清零连续计数）。
    *
    * 唯一的 await 在全部写入之后：临界区的判定与落库是同步完成的，
    * 期间不会被其它事件打断；await 之后消息已进入终态，再被观察到也是正确结果。
@@ -442,11 +445,19 @@ export class MessageBox extends DurableObject<Env> {
       }
       if (r.failed_attempts >= MAX_FAILED_UNLOCK) return { ok: false, reason: 'locked' };
       if (!timingSafeEqual(verifier, r.verifier)) {
-        this.sql.exec(
-          'UPDATE message SET failed_attempts = failed_attempts + 1 WHERE id = ?',
-          r.id,
-        );
-        return { ok: false, reason: 'bad_password' };
+        /*
+         * 计的是**连续**失败：上面验密成功那支会清零，所以这里是「连着输错几次」。
+         * 归零这一次不再返回 bad_password —— 消息此刻已经锁定，
+         * 直接告诉客户端 locked，让用户马上看到锁定页而不是「还剩 0 次」。
+         */
+        const failed = r.failed_attempts + 1;
+        this.sql.exec('UPDATE message SET failed_attempts = ? WHERE id = ?', failed, r.id);
+        if (failed >= MAX_FAILED_UNLOCK) return { ok: false, reason: 'locked' };
+        return { ok: false, reason: 'bad_password', attemptsRemaining: MAX_FAILED_UNLOCK - failed };
+      }
+      // 验密通过：连续失败计数清零，下次再错又是从满额度开始
+      if (r.failed_attempts !== 0) {
+        this.sql.exec('UPDATE message SET failed_attempts = 0 WHERE id = ?', r.id);
       }
     }
 

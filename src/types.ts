@@ -151,6 +151,11 @@ export interface ConsumeResponse {
 export interface ApiError {
   error: string;
   message: string;
+  /**
+   * 仅 `bad_password` 会带：锁定前还剩几次尝试机会（≥1）。
+   * 归零那一次不再走这条错误，而是直接返回 `locked`（消息即刻进入锁定态）。
+   */
+  attemptsRemaining?: number;
 }
 
 /* ------------------------------------------------------------------ */

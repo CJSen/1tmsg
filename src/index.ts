@@ -157,7 +157,7 @@ async function routeApi(req: Request, env: Env, url: URL): Promise<Response> {
     const body = await readOptionalJson<ConsumeRequest>(req, 4096);
     const verifier = typeof body.verifier === 'string' ? body.verifier : undefined;
     const result = await stub.consume(verifier);
-    if (!result.ok) return consumeFailure(result.reason);
+    if (!result.ok) return consumeFailure(result);
     return json(result.data satisfies ConsumeResponse);
   }
 
@@ -194,8 +194,9 @@ function methodNotAllowed(allow: string): Response {
   return res;
 }
 
-function consumeFailure(reason: string): Response {
-  switch (reason) {
+/** consume 失败结果 → HTTP 响应。bad_password 额外带上剩余尝试次数 */
+function consumeFailure(result: { reason: string; attemptsRemaining?: number }): Response {
+  switch (result.reason) {
     case 'not_found':
       return fail(404, 'not_found', 'Message not found or already destroyed');
     case 'gone':
@@ -205,9 +206,16 @@ function consumeFailure(reason: string): Response {
     case 'password_required':
       return fail(401, 'password_required', 'This message requires a password');
     case 'bad_password':
-      return fail(401, 'bad_password', 'Wrong password');
+      return fail(
+        401,
+        'bad_password',
+        'Wrong password',
+        result.attemptsRemaining === undefined
+          ? undefined
+          : { attemptsRemaining: result.attemptsRemaining },
+      );
     case 'locked':
-      return fail(423, 'locked', 'Too many wrong passwords - message locked');
+      return fail(423, 'locked', 'Too many wrong passwords in a row - message locked');
     default:
       return fail(500, 'internal', 'Internal server error');
   }

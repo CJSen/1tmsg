@@ -4,7 +4,7 @@ import type {
   CreateMessageResponse,
   MessageMeta,
 } from '../types';
-import { t, type MsgKey } from '../i18n';
+import { t, type MsgKey, type TParams } from '../i18n';
 import type { Bytes } from './bytes';
 
 /**
@@ -13,6 +13,7 @@ import type { Bytes } from './bytes';
  * message 在抛出时就已经按当前语言取好文案：优先按 error code 查客户端字典，
  * 字典里没有的 code 才回落到服务端原文（服务端文案是英文的 API 兜底，见 src/index.ts）。
  * rate_limited 的秒数来自 Retry-After 响应头，随 retryAfter 一起带出来。
+ * bad_password 的剩余机会次数来自响应体的 attemptsRemaining（服务端计数，客户端不自己算）。
  */
 export class ApiError extends Error {
   constructor(
@@ -20,6 +21,7 @@ export class ApiError extends Error {
     readonly code: string,
     message: string,
     readonly retryAfter?: number,
+    readonly attemptsRemaining?: number,
   ) {
     super(message);
     this.name = 'ApiError';
@@ -54,12 +56,17 @@ function localizedError(
   code: string,
   serverMessage: string,
   retryAfter?: number,
+  attemptsRemaining?: number,
 ): ApiError {
   const key = CODE_KEYS[code];
   if (key === undefined) {
-    return new ApiError(status, code, serverMessage.length > 0 ? serverMessage : t('err.unknown'), retryAfter);
+    const fallback = serverMessage.length > 0 ? serverMessage : t('err.unknown');
+    return new ApiError(status, code, fallback, retryAfter, attemptsRemaining);
   }
-  return new ApiError(status, code, t(key, retryAfter === undefined ? undefined : { n: retryAfter }), retryAfter);
+  /* 两个 code 用同一个 n：rate_limited 取秒数，bad_password 取剩余机会次数 */
+  const n = retryAfter ?? attemptsRemaining;
+  const params: TParams | undefined = n === undefined ? undefined : { n };
+  return new ApiError(status, code, t(key, params), retryAfter, attemptsRemaining);
 }
 
 /** Retry-After 头（秒）。缺省或非数字按没给处理 */
@@ -93,10 +100,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   if (!res.ok) {
-    const body = (data ?? {}) as { error?: string; message?: string };
-    const retryAfter = retryAfterOf(res);
+    const body = (data ?? {}) as { error?: string; message?: string; attemptsRemaining?: number };
     const fallback = body.message ?? t('err.http', { status: res.status });
-    throw localizedError(res.status, body.error ?? 'error', fallback, retryAfter);
+    const remaining = typeof body.attemptsRemaining === 'number' ? body.attemptsRemaining : undefined;
+    throw localizedError(res.status, body.error ?? 'error', fallback, retryAfterOf(res), remaining);
   }
   if (data === null) throw new ApiError(res.status, 'bad_response', t('err.badResponse'));
   return data as T;
@@ -104,7 +111,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 /** 从失败响应里还原结构化错误（用于二进制通道，响应体可能不是 JSON） */
 async function toApiError(res: Response): Promise<ApiError> {
-  let body: { error?: string; message?: string } = {};
+  let body: { error?: string; message?: string; attemptsRemaining?: number } = {};
   try {
     const text = await res.text();
     if (text.length > 0) body = JSON.parse(text) as typeof body;
@@ -112,7 +119,8 @@ async function toApiError(res: Response): Promise<ApiError> {
     /* 边缘错误页等非 JSON 响应，退回状态码文案 */
   }
   const fallback = body.message ?? t('err.http', { status: res.status });
-  return localizedError(res.status, body.error ?? 'error', fallback, retryAfterOf(res));
+  const remaining = typeof body.attemptsRemaining === 'number' ? body.attemptsRemaining : undefined;
+  return localizedError(res.status, body.error ?? 'error', fallback, retryAfterOf(res), remaining);
 }
 
 export const api = {

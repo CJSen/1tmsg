@@ -272,7 +272,12 @@ async function boot(): Promise<void> {
       if (err instanceof ApiError) {
         switch (err.code) {
           case 'bad_password':
-            throw new LocaleError(t('err.bad_password'));
+            /* 服务端回传剩余次数时给完整警告：还有几次、锁定后什么后果 */
+            throw new LocaleError(
+              err.attemptsRemaining === undefined
+                ? t('err.bad_password')
+                : t('view.errBadPasswordLeft', { n: err.attemptsRemaining }),
+            );
           case 'password_required':
             throw new LocaleError(t('err.password_required'));
           case 'locked':

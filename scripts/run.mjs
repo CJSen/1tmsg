@@ -75,6 +75,7 @@ for (let i = 0; i < argv.length; i += 1) {
 const DEV_DEFAULTS = [
   ['--ip', '0.0.0.0'],
   ['--port', '8787'],
+  ['--local-protocol', 'https'],
 ];
 
 const givenFlags = new Set(

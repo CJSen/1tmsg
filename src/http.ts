@@ -58,8 +58,8 @@ export function json(data: unknown, status = 200): Response {
   );
 }
 
-export function fail(status: number, error: string, message: string): Response {
-  const body: ApiError = { error, message };
+export function fail(status: number, error: string, message: string, extra?: Omit<ApiError, 'error' | 'message'>): Response {
+  const body: ApiError = { error, message, ...extra };
   return json(body, status);
 }
 

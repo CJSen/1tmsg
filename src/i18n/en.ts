@@ -214,13 +214,15 @@ export const en: Record<MsgKey, string> = {
   'view.errRetryLater': 'Please try again shortly.',
   'view.errLockedTitle': 'Message locked',
   'view.errLockedBody':
-    'Too many wrong passwords — to protect the content, this message has been deleted.',
+    'Too many wrong passwords in a row. To protect the content, this message has been locked. A locked message cannot be viewed or recovered, and will be destroyed automatically when it expires.',
   'view.errDecryptTitle': 'Decryption failed',
   'view.errDecryptBody':
     'This link could not unlock the content. Check that the link is complete and unmodified.',
   'view.errOpenFailed': 'Could not open it. Please try again.',
   'view.errOpenFailedShort': 'Open failed',
   'view.errEmptyPassword': 'Enter the password',
+  'view.errBadPasswordLeft':
+    'Wrong password. {n} attempt left — after that the message locks and can never be viewed or recovered, and it is destroyed once it expires.||Wrong password. {n} attempts left — after that the message locks and can never be viewed or recovered, and it is destroyed once it expires.',
   'view.progressDecrypt': 'Decrypting locally…',
   'view.progressImagesTitle': 'Fetching images',
   'view.progressImages':
@@ -255,7 +257,7 @@ export const en: Record<MsgKey, string> = {
   'err.not_ready': 'The message is still uploading. Try again shortly.',
   'err.password_required': 'This message needs a password',
   'err.bad_password': 'Wrong password',
-  'err.locked': 'Too many wrong passwords — this message has been locked',
+  'err.locked': 'Too many wrong passwords in a row — this message has been locked',
   'err.unauthorized': 'The credential is invalid or has expired',
   'err.forbidden': 'The credential is invalid or has expired',
   'err.images_disabled': 'This deployment does not have images enabled',
