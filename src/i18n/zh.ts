@@ -32,6 +32,12 @@ export const zh = {
   'lang.toEnglish': '切换到英文',
   'lang.toChinese': '切换到中文',
   'nav.github': '在 GitHub 上查看源码',
+  /* 页脚。前两条是**内置**的用途告知（不再做成部署配置 —— 它是站点的固定组成部分，
+     部署者只配 vars.ABUSE_CONTACT，见 src/client/footer.ts）；
+     reportHint 只在配了举报联系方式时才显示，否则「下方方式」会落空 */
+  'foot.notice': '本服务仅限合法用途，禁止用于违法活动或传播违法信息。',
+  'foot.reportHint': '发现违规内容，请将相关链接发送到下方方式举报。',
+  'foot.report': '举报滥用',
 
   /* ---------------- 创建页 · 页头与说明 ---------------- */
 

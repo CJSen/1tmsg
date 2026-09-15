@@ -19,6 +19,13 @@ export const en: Record<MsgKey, string> = {
   'lang.toEnglish': 'Switch to English',
   'lang.toChinese': '切换到中文',
   'nav.github': 'View the source on GitHub',
+  /* Footer. The first two are the **built-in** lawful-use notice (no longer a
+     deployer setting — it's part of the site itself; deployers only set
+     vars.ABUSE_CONTACT, see src/client/footer.ts). reportHint is only shown when
+     a report contact is configured, otherwise "the address below" would dangle */
+  'foot.notice': 'Lawful use only. No illegal activity or unlawful content.',
+  'foot.reportHint': 'If you find abusive content, send the link to the contact below.',
+  'foot.report': 'Report abuse',
 
   /* ---------------- 创建页 · 页头与说明 ---------------- */
 

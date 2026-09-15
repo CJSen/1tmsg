@@ -32,6 +32,7 @@ import {
   parsePayload,
 } from './crypto';
 import { attachmentUrls, hydrateMarkdown, renderMarkdown, revokeAll } from './markdown';
+import { mountFooter } from './footer';
 import { bindPasswordToggle, copyText, countdown, el, maybe, setBusy, show, toast } from './ui';
 
 const stateLoading = el('stateLoading');
@@ -487,6 +488,9 @@ window.addEventListener('hashchange', () => {
 onLocaleChange(paintLoading);
 onLocaleChange(paintFatal);
 onLocaleChange(renderBadge);
+/* 页脚（可选：用途告知 / 举报入口）—— 与上面同理，先登记再 initLocale。
+   收件人恰恰是最可能用到举报入口的人，所以这一页也要有 */
+mountFooter();
 void initLocale();
 
 void boot().catch((err: unknown) => {

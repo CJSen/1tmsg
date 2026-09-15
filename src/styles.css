@@ -452,7 +452,28 @@ main { position: relative; z-index: 1 }
 .modal-tx { font-size: 13.5px; font-weight: 650; color: var(--i800); line-height: 1.55 }
 
 /* ==========================================================================
-   12. 响应式
+   12. 页脚（内置用途告知 + 可选举报入口）
+
+   节点由 src/client/footer.ts 在运行期创建：告知文案内置（字典键 foot.*），
+   举报入口只在部署配置填了 vars.ABUSE_CONTACT 时才生成。
+   挂 body 而不是 .frame：创建页与「已创建」屏是两个并列容器。
+   ========================================================================== */
+.foot {
+  max-width: 720px; margin: 0 auto; padding: 0 22px 40px;
+  text-align: center; color: var(--i400); font-size: 12px; line-height: 1.7;
+}
+.foot .fnote { margin: 0 }
+/* 「…下方方式举报」这句与链接同段，但独占一行 —— 文案里说的「下方」就在它下面 */
+.foot .fhint { display: block }
+.foot .freport { margin: 6px 0 0 }
+.foot .flink {
+  color: var(--i600); text-decoration: underline; text-underline-offset: 2px;
+  text-decoration-color: var(--line2); transition: var(--t);
+}
+.foot .flink:hover { color: var(--b600); text-decoration-color: var(--b300) }
+
+/* ==========================================================================
+   13. 响应式
    ========================================================================== */
 @media (min-width: 920px) {
   .frame { container-type: inline-size }
@@ -485,6 +506,7 @@ main { position: relative; z-index: 1 }
 }
 @media (max-width: 640px) {
   .frame { padding: 24px 16px 80px }
+  .foot { padding: 0 16px 30px }
   .band { display: none }
   /* 640 以内两栏放不下（二维码 216 + 间距后只剩 ~150px 给状态卡），改为竖排 */
   .share { grid-template-columns: minmax(0, 1fr) }

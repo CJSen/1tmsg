@@ -32,6 +32,7 @@ import {
   serializePayload,
 } from './crypto';
 import { MessageEditor } from './editor';
+import { mountFooter } from './footer';
 import { initLocale } from '../i18n';
 import {
   bindPasswordToggle,
@@ -486,4 +487,7 @@ onLocaleChange(renderConfigHints);
 onLocaleChange(renderSentSummary);
 /* 二维码节点也是 JS 建的，它的 aria-label 跟着语言走 */
 onLocaleChange(() => qrSvg?.setAttribute('aria-label', t('sent.qrAria')));
+/* 页脚（可选：用途告知 / 举报入口）同样先挂好并登记重绘回调，
+   这样 initLocale 跟随浏览器语言时它的链接文案会一起切 */
+mountFooter();
 void initLocale();
