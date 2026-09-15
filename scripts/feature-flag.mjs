@@ -1,11 +1,14 @@
 /**
- * 读部署配置，回答两个构建期问题：
+ * 读部署配置，回答三个构建期问题：
  *
  *   1. 这次部署带不带图片功能 —— 判据只有一条：配置里有没有 r2_buckets。
  *      它与运行时的 env.BLOBS 同源，所以不存在第二个开关可以与之漂移。
  *      想切换版本就换一份配置（wrangler.jsonc 仅文字 / wrangler.images.jsonc 带图片）。
  *   2. 默认语言是什么 —— 判据是 vars.DEFAULT_LOCALE（缺省 zh）。
  *      构建期据此生成 src/i18n/active.ts，页面渲染也读同一处。
+ *   3. 举报联系方式填了没有 —— 判据是 vars.ABUSE_CONTACT（缺省为空）。
+ *      构建期据此生成 src/legal.ts。页脚的**用途告知文案是内置的**（字典键 foot.notice
+ *      / foot.reportHint），不走配置：它是站点的固定组成部分，部署者只需要填联系方式。
  *
  * 读的是哪份配置：默认 wrangler.jsonc，可由 WRANGLER_CONFIG 覆盖（见下方 configPath）。
  * 两份配置都随仓库入库，所以不再做「缺失时自动生成」—— 缺了就是仓库不完整，直接报错。
@@ -100,7 +103,12 @@ function loadConfig() {
   try {
     return JSON.parse(stripTrailingCommas(stripJsonc(readFileSync(path, 'utf8'))));
   } catch (err) {
-    throw new Error(`${name} 不是合法 JSON：${err.message}`);
+    /* 多行文本（比如 vars.LEGAL_NOTICE 写两句）最容易踩这个坑：
+       JSON 字符串里不允许出现真正的换行，必须写成 \n 转义。这里直接说清楚。 */
+    const hint = /control character/i.test(err.message)
+      ? '\n     提示：字符串里的多行文本要写成 \\n 转义，不能直接换行。'
+      : '';
+    throw new Error(`${name} 不是合法 JSON：${err.message}${hint}`);
   }
 }
 
@@ -133,6 +141,102 @@ export function defaultLocale() {
   throw new Error(
     `${basename(configPath())} 的 vars.DEFAULT_LOCALE 只能是 ${LOCALES.map((l) => `"${l}"`).join(' 或 ')}，当前是 ${JSON.stringify(raw)}`,
   );
+}
+
+/* ------------------------------------------------------------------ */
+/* 页脚：举报联系方式（可选，默认空）                                    */
+/* ------------------------------------------------------------------ */
+
+/** 联系方式长度上限 */
+const CONTACT_MAX = 200;
+
+/**
+ * 读一个字符串型 vars。缺省 / null / 空串一律当成「没配」，返回 ''；
+ * 类型不对（写成数字或数组）直接报错 —— 这类错误静默吞掉最贵。
+ */
+function readVar(name) {
+  const raw = loadConfig().vars?.[name];
+  if (raw === undefined || raw === null) return '';
+  if (typeof raw !== 'string') {
+    throw new Error(`${basename(configPath())} 的 vars.${name} 必须是字符串，当前是 ${JSON.stringify(raw)}`);
+  }
+  return raw.trim();
+}
+
+/**
+ * 举报联系方式（vars.ABUSE_CONTACT）。
+ *
+ * 只接受两种形态：**邮箱** 或 **http(s) 网址**。构建期就卡住，免得页面上出现一个
+ * 点不动的「举报滥用」。
+ *
+ * ⚠️ 填之前想清楚两件事（README 有完整说明）：
+ *   1. 这必须是**你自己能持续收信**的地址 —— 收件方就是「接到举报后有义务处置」的人；
+ *   2. 别填不是你的地址。
+ *
+ * 缺省为空 = 页脚不出现举报入口，build-client.mjs 会在构建日志里显著提醒。
+ */
+export function abuseContact() {
+  const value = readVar('ABUSE_CONTACT');
+  if (!value) return '';
+  if (value.length > CONTACT_MAX) {
+    throw new Error(`${basename(configPath())} 的 vars.ABUSE_CONTACT 太长（${value.length} 字 > ${CONTACT_MAX}）。`);
+  }
+  if (/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(value)) return value;
+  if (/^https?:\/\/\S+$/.test(value)) return value;
+  throw new Error(
+    `${basename(configPath())} 的 vars.ABUSE_CONTACT 只能是邮箱或 http(s) 网址，当前是 ${JSON.stringify(value)}`,
+  );
+}
+
+/** 举报链接的 href：邮箱补 mailto:，网址原样。构建期定死，运行期不再判断 */
+export function abuseHref() {
+  const value = abuseContact();
+  if (!value) return '';
+  return value.includes('@') && !/^https?:/i.test(value) ? `mailto:${value}` : value;
+}
+
+const LEGAL_FILE = resolve(root, 'src/legal.ts');
+
+/**
+ * 生成 src/legal.ts（不入库）。
+ *
+ * 这里只剩「部署者可配的那一个值」。页脚的用途告知是内置的（字典键 foot.notice /
+ * foot.reportHint），不走配置 —— 它是站点的固定组成部分。
+ *
+ * 为什么联系方式走「生成文件 + 运行期建节点」，而不是构建期烤进 public/*.html：
+ * 个人联系方式一旦写进 HTML，就成了**入库文件**的改动 —— git pull 会冲突，而这正是
+ * 本项目要求「自己的域名、桶名只留在 wrangler.<自定义>.jsonc」的那条规矩。
+ * 生成文件与 src/i18n/active.ts 同类：由配置派生、不入库、每次构建重写。
+ *
+ * 代价：禁用脚本时举报入口不显示。可以接受 —— 它本来就是给「看得到页面的人」看的。
+ */
+export function writeLegalConfig() {
+  const href = abuseHref();
+  const name = basename(configPath());
+
+  const source = `/**
+ * 构建期生成的文件 —— **请勿手改**，下次构建会被覆盖。
+ *
+ * 由 scripts/feature-flag.mjs 依据 ${name} 的 vars.ABUSE_CONTACT 生成。
+ * 页脚的**用途告知文案不在这里** —— 它是内置的，见字典键 foot.notice / foot.reportHint。
+ *
+ * 留空时的状态：ABUSE_CONTACT 与 ABUSE_HREF 都是空串，页脚不生成举报入口
+ * （见 src/client/footer.ts），构建日志里会有显著提醒。**这是默认状态**，
+ * 所以本仓库不会把任何人的联系方式带给下游部署者。
+ *
+ * 改动方式：改部署配置里的 vars.ABUSE_CONTACT，然后重新构建（见 scripts/run.mjs）。
+ * 自己的实例请把值写进 wrangler.<自定义>.jsonc（已被 .gitignore 忽略）。
+ *
+ * 两个常量都显式标注 \`: string\`，别去掉：空串会被推导成字面量类型 ""，
+ * 于是 \`if (ABUSE_HREF)\` 分支里的值被收窄成 never，tsc 会直接报错。
+ */
+export const ABUSE_CONTACT: string = ${JSON.stringify(abuseContact())};
+
+export const ABUSE_HREF: string = ${JSON.stringify(href)};
+`;
+
+  writeFileSync(LEGAL_FILE, source);
+  return { report: href !== '' };
 }
 
 const ACTIVE_LOCALE = resolve(root, 'src/i18n/active.ts');

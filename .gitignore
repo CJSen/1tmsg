@@ -24,6 +24,10 @@ public/assets/
 # vars.DEFAULT_LOCALE 生成（见 npm run locale）。不入库 —— 想换默认语言改配置即可。
 src/i18n/active.ts
 
+# 页脚的构建期产物：由同一个脚本依 vars.LEGAL_NOTICE / vars.ABUSE_CONTACT 生成。
+# 不入库是**故意的** —— 开源仓库绝不能带着某个人的举报邮箱发给下游部署者。
+src/legal.ts
+
 # 个人部署配置（含自己的域名 / 桶名，随 npm run deploy -- -c wrangler.me.jsonc 使用）。
 # 注意不是 wrangler.jsonc 本身 —— 那个文件要留在仓库里，一键部署靠它 provision 资源。
 wrangler*.jsonc

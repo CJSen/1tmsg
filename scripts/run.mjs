@@ -24,7 +24,7 @@ import { existsSync } from 'node:fs';
 import { dirname, extname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { defaultLocale, imagesEnabled } from './feature-flag.mjs';
+import { abuseContact, defaultLocale, imagesEnabled } from './feature-flag.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DEFAULT_CONFIG = 'wrangler.jsonc';
@@ -125,16 +125,21 @@ process.env.WRANGLER_CONFIG = configPath;
 
 let images;
 let locale;
+let abuse;
 try {
   images = imagesEnabled();
   locale = defaultLocale();
+  /* 举报联系方式是可选项，顺手在这里也校验一遍 —— 配置写错应该在构建之前就喊停 */
+  abuse = abuseContact();
 } catch (err) {
   die(`读配置失败：${err.message}`);
 }
 
 const target = mode === 'deploy' ? 'wrangler deploy' : 'wrangler dev';
 console.log(
-  `[run] 配置：${configName}｜图片：${images ? '启用' : '关闭'}｜默认语言：${locale}`,
+  `[run] 配置：${configName}｜图片：${images ? '启用' : '关闭'}｜默认语言：${locale}｜举报入口：${
+    abuse ? '已配置' : '⚠ 未配置（建议填写 vars.ABUSE_CONTACT，构建时会给详细提示）'
+  }`,
 );
 console.log(
   `[run] 目标：${target}${extraArgs.length ? `｜参数：${extraArgs.join(' ')}` : ''}`,
