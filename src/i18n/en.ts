@@ -273,6 +273,7 @@ export const en: Record<MsgKey, string> = {
   'err.images_disabled': 'This deployment does not have images enabled',
   'err.incomplete': 'Some images have not finished uploading',
   'err.rate_limited': 'Too many messages created — try again in {n} seconds||Too many messages created — try again in {n} seconds',
+  'err.storage_capacity_reached': 'This service has run out of storage capacity, so images cannot be sent right now. Send text only, or try again later',
   'err.id_collision': 'The service is temporarily unavailable. Try again.',
   'err.method_not_allowed': 'That request method is not allowed',
   'err.length_required': 'The request is missing its length',

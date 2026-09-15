@@ -7,6 +7,7 @@ import {
   PENDING_TTL_MS,
   PURGE_RETRY_MS,
   READ_TOKEN_TTL_MS,
+  STORAGE_GUARD_NAME,
   TOKEN_CHARS,
 } from './config';
 import type { Env } from './env';
@@ -39,6 +40,10 @@ interface Row {
   read_token: string | null;
   read_token_expires: number | null;
   purge_pending: number;
+  /** 本消息在全局容量计数器里占的字节数（= 创建时申报的附件体积合计） */
+  reserved_bytes: number;
+  /** 幂等闩：1 = 这份预留已经释放过（或正在释放），绝不再释放第二次 */
+  reservation_released: number;
 }
 
 /** consume 失败原因，映射到 HTTP 状态码由 Worker 层决定 */
@@ -74,6 +79,12 @@ export type FinalizeResult =
  */
 const CHUNK_CHARS = 1024 * 1024;
 
+/** 毫秒级窗口：配置值合法且为正就用它，否则用缺省常量 */
+function positiveOr(configured: string | undefined, fallback: number): number {
+  const raw = Number(configured);
+  return Number.isFinite(raw) && raw > 0 ? raw : fallback;
+}
+
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS message (
   id                 TEXT PRIMARY KEY,
@@ -91,7 +102,9 @@ CREATE TABLE IF NOT EXISTS message (
   upload_token       TEXT,
   read_token         TEXT,
   read_token_expires INTEGER,
-  purge_pending      INTEGER NOT NULL DEFAULT 0
+  purge_pending      INTEGER NOT NULL DEFAULT 0,
+  reserved_bytes     INTEGER NOT NULL DEFAULT 0,
+  reservation_released INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS chunk (
   idx                INTEGER PRIMARY KEY,
@@ -141,6 +154,7 @@ export class MessageBox extends DurableObject<Env> {
       this.sql.exec('DROP TABLE IF EXISTS attachment');
     }
     this.sql.exec(SCHEMA);
+    this.ensureColumns();
   }
 
   /** message 表存在但没有 status 列 → 改造前的旧结构 */
@@ -151,6 +165,28 @@ export class MessageBox extends DurableObject<Env> {
       if (String(r.name) === 'status') return false;
     }
     return exists;
+  }
+
+  /**
+   * 给「结构兼容、只差新列」的已上线实例补列。
+   *
+   * `CREATE TABLE IF NOT EXISTS` 对已存在的表什么都不做，所以新增列不会自动出现在
+   * 老实例上 —— 不补的话，INSERT 会直接报 no such column。
+   * 这里补的两列都带默认值，因此老消息读出来是 `reserved_bytes = 0 /
+   * reservation_released = 0`，含义正好是「这条消息没占过全局容量，不需要释放」。
+   */
+  private ensureColumns(): void {
+    const have = new Set<string>();
+    for (const r of this.sql.exec("SELECT name FROM pragma_table_info('message')")) {
+      have.add(String(r.name));
+    }
+    if (have.size === 0) return; // 表刚由 SCHEMA 建好，列一定齐全
+    if (!have.has('reserved_bytes')) {
+      this.sql.exec('ALTER TABLE message ADD COLUMN reserved_bytes INTEGER NOT NULL DEFAULT 0');
+    }
+    if (!have.has('reservation_released')) {
+      this.sql.exec('ALTER TABLE message ADD COLUMN reservation_released INTEGER NOT NULL DEFAULT 0');
+    }
   }
 
   /* ------------------------------------------------------------------ */
@@ -177,6 +213,23 @@ export class MessageBox extends DurableObject<Env> {
   private attachmentCount(): number {
     const row = this.sql.exec('SELECT COUNT(*) AS n FROM attachment').one();
     return Number(row?.n ?? 0);
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* 时序参数                                                            */
+  /* ------------------------------------------------------------------ */
+
+  /**
+   * 部署配置可覆盖的两个窗口。都只取「合法且为正的有限数」，其余（缺省、0、NaN、
+   * 负数、非数字）一律回落到 config 里的常量 —— 这才是生产环境的默认行为，
+   * 覆盖口子只用来让自动化测试把窗口压到几秒，把「超时 → 清理 → 释放」跑完整。
+   */
+  private pendingTtlMs(): number {
+    return positiveOr(this.env.PENDING_TTL_MS, PENDING_TTL_MS);
+  }
+
+  private readTokenTtlMs(): number {
+    return positiveOr(this.env.READ_TOKEN_TTL_MS, READ_TOKEN_TTL_MS);
   }
 
   /* ------------------------------------------------------------------ */
@@ -239,8 +292,49 @@ export class MessageBox extends DurableObject<Env> {
   }
 
   /**
-   * 清 R2 → 删 attachment 行 → 收掉 Alarm。失败则重新武装 Alarm 稍后重试；
+   * 把本消息在全局容量计数器里占的额度还回去。
+   *
+   * ## 为什么每条消息最多只会释放一次
+   *
+   * `reservation_released` 就是那个幂等闩，且**先落闩、再做异步释放**：
+   *
+   *   - 闩是同步写下的（`sql.exec` + DO 单线程），因此两个并发的清理事件里
+   *     只有一个能读到 `reservation_released = 0`，另一个必然读到 1 并直接返回；
+   *   - 顺序不能反。若先发释放请求再落闩，一旦在两者之间崩溃（或被驱逐），
+   *     重试时闩还是 0 → 又释放一次 → 计数器越飘越小，等于凭空放大可用容量。
+   *     反过来（落了闩但释放请求没发出去）只会让计数偏大，方向是保守的：
+   *     少收几条，而不是悄悄越过红线。
+   *
+   * 注意方法内**重新读了一次行**，而不是复用调用方的快照 —— 快照可能是
+   * await 之前拿到的，用它判断闩会漏掉「另一个清理流程刚刚已经释放过」的情况。
+   */
+  private async releaseReservation(id: string): Promise<void> {
+    const r = this.row();
+    if (!r || r.id !== id || r.reserved_bytes <= 0 || r.reservation_released !== 0) return;
+
+    // 1) 先落闩（同步、原子）
+    this.sql.exec('UPDATE message SET reservation_released = 1 WHERE id = ?', id);
+
+    // 2) 再释放。失败只记日志：额度会偏大（保守方向），且下一次部署/清理不会重放
+    const namespace = this.env.STORAGE_GUARD;
+    if (!namespace) {
+      console.warn('[1tmsg] storage guard 未绑定，跳过预留释放');
+      return;
+    }
+    try {
+      const guard = namespace.get(namespace.idFromName(STORAGE_GUARD_NAME));
+      await guard.release(r.reserved_bytes);
+    } catch (err) {
+      console.warn(`[1tmsg] storage guard release(${r.reserved_bytes}) failed`, err);
+    }
+  }
+
+  /**
+   * 清 R2 → 释放全局预留 → 删 attachment 行 → 收掉 Alarm。失败则重新武装 Alarm 稍后重试；
    * 即使 DO 被驱逐、Alarm 丢失，桶的生命周期规则仍会把孤儿对象清掉。
+   *
+   * 释放的时机刻意定在**对象真的清干净之后**：只要 R2 上还留着本消息的密文，
+   * 那些字节就仍在占用桶，额度就不该还回去。
    */
   private async purgeAsync(): Promise<void> {
     const r = this.row();
@@ -250,6 +344,7 @@ export class MessageBox extends DurableObject<Env> {
       await this.ctx.storage.setAlarm(Date.now() + PURGE_RETRY_MS);
       return;
     }
+    await this.releaseReservation(r.id);
     this.sql.exec('DELETE FROM attachment');
     this.sql.exec(
       `UPDATE message
@@ -309,8 +404,15 @@ export class MessageBox extends DurableObject<Env> {
   /**
    * 写入一条新消息。
    * 无附件 → 直接 active；有附件 → pending，返回上传令牌，等 finalize 才可消费。
+   *
+   * @param reservedBytes 本次已在全局容量计数器里预留的字节数（= 申报附件体积合计）。
+   *   落库保存，销毁时据此释放；纯文字消息为 0，不参与容量保险。
    */
-  async create(id: string, input: CreateMessageRequest): Promise<CreateMessageResponse> {
+  async create(
+    id: string,
+    input: CreateMessageRequest,
+    reservedBytes = 0,
+  ): Promise<CreateMessageResponse> {
     const now = Date.now();
     const expiresAt = now + input.expiresInSeconds * 1000;
     const maxViews = Math.min(MAX_VIEWS, Math.max(MIN_VIEWS, Math.trunc(input.maxViews)));
@@ -319,6 +421,7 @@ export class MessageBox extends DurableObject<Env> {
     const hasAttachments = specs.length > 0;
     const uploadToken = hasAttachments ? randomId(TOKEN_CHARS) : null;
     const status: MessageStatus = hasAttachments ? 'pending' : 'active';
+    const reserved = Number.isSafeInteger(reservedBytes) && reservedBytes > 0 ? reservedBytes : 0;
 
     // 分片写入必须整体成功或整体失败，否则会留下半条读不出来的密文
     this.ctx.storage.transactionSync(() => {
@@ -336,8 +439,9 @@ export class MessageBox extends DurableObject<Env> {
         `INSERT INTO message
            (id, version, status, iv, salt, kdf_iterations, verifier,
             created_at, expires_at, max_views, views, failed_attempts,
-            upload_token, read_token, read_token_expires, purge_pending)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, NULL, NULL, 0)`,
+            upload_token, read_token, read_token_expires, purge_pending,
+            reserved_bytes, reservation_released)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, NULL, NULL, 0, ?, 0)`,
         id,
         PAYLOAD_VERSION_R2,
         status,
@@ -349,6 +453,7 @@ export class MessageBox extends DurableObject<Env> {
         expiresAt,
         maxViews,
         uploadToken,
+        reserved,
       );
       for (const spec of specs) {
         this.sql.exec(
@@ -360,7 +465,7 @@ export class MessageBox extends DurableObject<Env> {
     });
 
     // pending 时 Alarm 定在「消息到期」与「上传窗口结束」中较早的那个
-    const alarmAt = hasAttachments ? Math.min(expiresAt, now + PENDING_TTL_MS) : expiresAt;
+    const alarmAt = hasAttachments ? Math.min(expiresAt, now + this.pendingTtlMs()) : expiresAt;
     await this.ctx.storage.setAlarm(Math.max(alarmAt, now + 1000));
     return { id, expiresAt, maxViews, uploadToken };
   }
@@ -477,7 +582,7 @@ export class MessageBox extends DurableObject<Env> {
      * 所以销毁路径也发一个短命令牌，Alarm 定在令牌过期时刻再清对象。
      */
     const readToken = randomId(TOKEN_CHARS);
-    const readTokenExpires = now + READ_TOKEN_TTL_MS;
+    const readTokenExpires = now + this.readTokenTtlMs();
 
     const payload: ConsumeResponse = {
       ciphertext: this.readCiphertext(),

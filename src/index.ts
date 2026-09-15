@@ -25,6 +25,11 @@
  * DO 的令牌校验，再由 Worker 流式转发 —— 否则密文可被无限次重复下载，
  * 「阅后即焚」就只剩个说法。
  *
+ * 全局容量红线：桶的总量由 StorageGuard 这个单例 DO 看住。带附件的创建请求在
+ * **创建消息之前**按申报体积原子预留（src/storage-guard.ts），预留不到就 507 拒绝；
+ * 消息销毁、上传超时、到期清理时释放。图片仍然只存 R2，DO 里只有一个计数器。
+ * 并发下也不会超额 —— 原因是「判定 + 自增」写在同一行 SQL 里，而不是先读后写。
+ *
  * 静态资源优先命中，未命中的路径才落到这里；因此 /api/* 与 /m/* 必然由本文件处理。
  */
 import {
@@ -44,6 +49,7 @@ import {
   PBKDF2_SALT_BYTES,
   RATE_LIMIT_MAX_CREATES,
   RATE_LIMIT_WINDOW_MS,
+  STORAGE_GUARD_NAME,
 } from './config';
 import type { Env } from './env';
 import {
@@ -59,6 +65,7 @@ import {
 } from './http';
 import { MessageBox } from './message-box';
 import { RateLimiter } from './rate-limiter';
+import { StorageGuard } from './storage-guard';
 import type {
   AttachmentSpec,
   ConsumeRequest,
@@ -67,7 +74,7 @@ import type {
 } from './types';
 import { r2Key } from './types';
 
-export { MessageBox, RateLimiter };
+export { MessageBox, RateLimiter, StorageGuard };
 
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 /** 附件 ID 的形状约束 —— 它会成为 R2 对象键的一段，必须严格 */
@@ -283,14 +290,73 @@ async function createMessage(req: Request, env: Env): Promise<Response> {
     return res;
   }
 
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    const id = randomId(MESSAGE_ID_LENGTH);
-    const stub = env.MESSAGE_BOX.get(env.MESSAGE_BOX.idFromName(id));
-    if (await stub.exists()) continue;
-    const created = await stub.create(id, input);
-    return json(created, 201);
+  /*
+   * 全局容量保险：**先预留、后创建**。
+   *
+   * 顺序不能反。若先创建消息再预留，并发请求会各自看到「还有空间」而一起放行，
+   * 预留的意义就没了；若留给「上传完成后统计」，同样会在并发下超额（见 storage-guard.ts）。
+   * 预留的是**申报体积合计**，也就是这条消息最多可能往桶里放多少字节 ——
+   * 上传接口按同一份申报值校验单张体积，因此实际占用不会超过预留。
+   *
+   * 纯文字消息不碰 R2，也就完全不参与容量保险（total 为 0 时直接跳过）。
+   */
+  const reservedBytes = totalAttachmentBytes(input.attachments);
+  const guard = storageGuard(env);
+  const reserved = guard !== null && reservedBytes > 0;
+  if (reserved && guard !== null) {
+    if (!(await guard.reserve(reservedBytes))) {
+      // 507：容量暂时不可用。文案不暴露任何内部实现（上限、已用、计数器位置都不提）
+      return fail(507, 'storage_capacity_reached', 'Storage capacity temporarily unavailable');
+    }
   }
+
+  try {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const id = randomId(MESSAGE_ID_LENGTH);
+      const stub = env.MESSAGE_BOX.get(env.MESSAGE_BOX.idFromName(id));
+      if (await stub.exists()) continue;
+      const created = await stub.create(id, input, reserved ? reservedBytes : 0);
+      return json(created, 201);
+    }
+  } catch (err) {
+    // 预留已经拿到但消息没建成：必须还回去，否则这块额度会永远悬空
+    if (reserved) await releaseQuietly(env, reservedBytes);
+    throw err;
+  }
+  if (reserved) await releaseQuietly(env, reservedBytes);
   return fail(503, 'id_collision', 'Could not allocate a message id. Try again.');
+}
+
+/** 申报的附件体积合计；超不过 MAX_TOTAL_ATTACHMENT_BYTES，因此不会溢出安全整数 */
+function totalAttachmentBytes(specs: AttachmentSpec[]): number {
+  let total = 0;
+  for (const spec of specs) total += spec.size;
+  return total;
+}
+
+/**
+ * 取全局容量计数器。它是单例 —— 实例名固定，所有请求落在同一个 DO 上，
+ * 由 DO 的单线程执行把 reserve/release 串起来。
+ *
+ * 绑定位缺失时返回 null（不抛错）：容量保险没配好不该让整站创建功能一起挂掉。
+ * 这种情况会在日志里留下明确线索。
+ */
+function storageGuard(env: Env): DurableObjectStub<StorageGuard> | null {
+  const namespace = env.STORAGE_GUARD;
+  if (!namespace) {
+    console.warn('[1tmsg] STORAGE_GUARD 未绑定，全局容量保险暂不生效');
+    return null;
+  }
+  return namespace.get(namespace.idFromName(STORAGE_GUARD_NAME));
+}
+
+/** 释放预留的「尽力而为」版本：失败只记日志，绝不覆盖调用方真正要抛/要返回的错误 */
+async function releaseQuietly(env: Env, bytes: number): Promise<void> {
+  try {
+    await storageGuard(env)?.release(bytes);
+  } catch (err) {
+    console.warn(`[1tmsg] storage guard release(${bytes}) failed`, err);
+  }
 }
 
 /** 服务端校验：只检查形状、长度与边界，看不懂也解不开内容 */

@@ -18,6 +18,7 @@
     "src/index.ts",
     "src/message-box.ts",
     "src/rate-limiter.ts",
+    "src/storage-guard.ts",
     "src/env.ts",
     "src/types.ts",
     "src/config.ts",

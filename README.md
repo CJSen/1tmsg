@@ -61,7 +61,7 @@
 | | 仅文字（默认） | 支持图片 |
 |---|---|---|
 | 配置文件 | `wrangler.jsonc` | `wrangler.images.jsonc` |
-| 能发什么 | 文字、Markdown | 文字、Markdown、**图片**（单张 ≤ 100 MB） |
+| 能发什么 | 文字、Markdown | 文字、Markdown、**图片**（单张 ≤ 10 MB） |
 | 要开通 R2 | 不需要 | 需要 —— R2 开通时要求绑定支付方式 |
 
 两份配置只差一段 `r2_buckets`：在 `wrangler.jsonc` 里它是注释掉的，在 `wrangler.images.jsonc` 里是生效的 —— **有这段就是支持图片的版本**。
@@ -241,7 +241,8 @@ https://1tmsg.<你的账号>.workers.dev
 | **用自己的域名** | 编辑 `wrangler.jsonc`，取消 `routes` 那行注释并替换成你的域名，重新 `npm run deploy`。域名需已托管在 Cloudflare；证书与 DNS 记录会自动创建，**不要**再手动加 A/CNAME |
 | **改 Worker 名字** | 改 `wrangler.jsonc` 的 `name`。如果开着图片功能，建桶命令里的桶名也要保持一致（或另起一个桶名并同步改 `bucket_name`） |
 | **关闭 workers.dev 备用地址** | 删掉 `wrangler.jsonc` 里的 `workers_dev` 行，只保留自定义域名 |
-| **调整单条消息 / 图片上限** | 改 `wrangler.jsonc` 的 `vars`（`MAX_MESSAGE_BYTES`、`MAX_ATTACHMENT_BYTES`、`RATE_LIMIT_MAX_CREATES`）后重新部署。后两项只在支持图片的版本里有意义 |
+| **调整单条消息 / 图片上限** | 改 `wrangler.jsonc` 的 `vars`（`MAX_MESSAGE_BYTES`、`MAX_ATTACHMENT_BYTES`、`RATE_LIMIT_MAX_CREATES`）后重新部署。后两项只在支持图片的版本里有意义。**单条消息所有图片的合计上限**（默认 50 MB）不走 vars，硬编码在 `src/config.ts` 的 `MAX_TOTAL_ATTACHMENT_BYTES`，要改得动源码 |
+| **收紧图片总容量** | 改 `wrangler.jsonc` 的 `vars.MAX_R2_STORAGE_GB`（**单位 GB，支持小数**，如 `"5"` / `"0.5"`，缺省 `"5"`）后重新部署。它约束的是**整个服务允许被消息预留的空间**：占满后带图片的创建返回 `507 storage_capacity_reached`，纯文字消息照常可用；填 `"0"` 即不再收任何图片。⚠️ **升级一个已经在跑的实例**前，请先看 R2 控制台里桶的当前用量（也是按 GB 显示），把它填进 `vars.INITIAL_RESERVED_GB` 再部署 —— 否则存量会被当成 0，等于多放出 5 GB。该值只在计数器首次建立时生效一次（详见下方「容量保险」） |
 | **配置举报入口** | 编辑 `wrangler.jsonc` 的 `vars.ABUSE_CONTACT`（**只接受邮箱或 `http(s)` 网址**，构建期会校验），重新 `npm run deploy`。**留空则页脚不显示举报入口**，构建日志里会有显著提醒（建议填写）；请填自己会持续查看的地址。页脚那句「本服务仅限合法用途…」的告知**是内置的**，不需要配置（详见下方「公开运营前」） |
 | **更新版本** | `git pull && npm run deploy` 即可覆盖升级。**自己的域名、桶名、开关请写进单独的配置文件**（如 `wrangler.me.jsonc`，见上方小技巧）并用 `-c` 指定 —— 直接改 `wrangler.jsonc` 会在 `git pull` 时被覆盖或冲突 |
 
@@ -263,8 +264,9 @@ https://1tmsg.<你的账号>.workers.dev
 
 | 项 | 值 |
 |---|---|
-| 单张图片 ※ | ≤ 100 MB，最多 8 张 |
-| 图片合计 ※ | ≤ 200 MB / 条 |
+| 单张图片 ※ | ≤ 10 MB，最多 8 张 |
+| 图片合计 ※ | ≤ 50 MB / 条（比「10 MB × 8 张」更紧，实际由它决定能发几张） |
+| 图片总容量 ※ | 默认 ≤ 5 GB（`vars.MAX_R2_STORAGE_GB`，可调；占满后只能发纯文字消息） |
 | 文本内容 | ≤ 10 MB |
 | 过期时间 | 3 分钟 – 7 天，默认 1 小时 |
 | 可查看次数 | 1 – 100，默认 5（关闭阅后即焚时可用） |
@@ -273,6 +275,17 @@ https://1tmsg.<你的账号>.workers.dev
 | 创建频率 | 每 IP 每分钟 30 条 |
 
 > ※ 仅支持图片的版本（`wrangler.images.jsonc`）有此限制；仅文字的版本（`wrangler.jsonc`）用不到这几项。
+
+### 容量保险：图片总量不会无限增长
+
+公开服务最怕的不是某一条消息太大，而是**总量**没有上限 —— 只要 IP 够多、时间够长，桶就能一直涨。所以图片版本还带一条全站红线：
+
+- 每次创建带图片的消息，先按**申报的图片体积**在全局计数器里原子预留（`MAX_R2_STORAGE_GB`，默认 5 GB）。预留不到就直接返回 `507`，消息根本不会被创建。
+- 消息销毁、上传超时、到期清理时，预留原样归还 —— 每条消息**至多归还一次**，不会重复释放。
+- 判定与累加是同一个原子操作，所以**并发创建也不会把总量刷过上限**。
+- 计数器记的是「已经承诺出去的空间上限」，不是 R2 的实时占用；实际占用只会更少，因此偶尔看到「预留量 > 实际占用」是正常的。
+
+计数器住在单独一个 Durable Object 里（`StorageGuard`），外部无法访问。R2 的生命周期规则照旧保留，作为异常 / 孤儿对象的最终兜底；但**自动删除不会通知 Worker**，所以额度归还不依赖它，而是跟着消息的生命周期走。
 
 ---
 

@@ -1,58 +1,40 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// 1tmsg · 部署配置 —— 仅文字（默认）
-//
-// 仓库自带的默认配置，开箱即用：npm install && npm run deploy
-// 想发图片就用同目录的 wrangler.images.jsonc（需先开通 R2 并建桶）：
-//   npm run deploy -- -c wrangler.images.jsonc
-// 两份配置只差一段 r2_buckets 声明 —— 本文件里它是注释掉的。
-//
-// ⚠️ 本文件与 wrangler.images.jsonc 都随仓库入库：一键部署靠它们自动创建资源，
-//    不要加进 .gitignore。自己的域名、桶名请另建 wrangler.<自定义>.jsonc（已被忽略）。
-//
-// ⚠️ 标「代码耦合」的字段与 src/ 里的绑定名、导出类名一一对应，不要改名，
-//    否则运行时会报 "Cannot read properties of undefined"。
-// ─────────────────────────────────────────────────────────────────────────────
+// 1tmsg · 仅文字（默认）：npm install && npm run deploy
+// 发图片用 wrangler.images.jsonc（多一段 r2_buckets）：npm run deploy -- -c wrangler.images.jsonc
+// 两份都随仓库入库、别 gitignore；自己的域名/桶名/邮箱另建 wrangler.<自定义>.jsonc（已被忽略）。
+// 三段：① 固定头（不必改）② 常用配置（按需改）③ 机械配置（不用动）。标「代码耦合」的字段勿改名。
 {
+	// ① 固定头
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "1tmsg", // 同一账号下需唯一，也决定 *.workers.dev 地址的前缀
+	"name": "1tmsg", // 同账号下需唯一，决定 *.workers.dev 前缀
 	"main": "src/index.ts",
 	"compatibility_date": "2025-08-01",
 	"compatibility_flags": [
 		"nodejs_compat"
 	],
-	// 自定义域名（默认关闭，只走 *.workers.dev）。域名需已托管在 Cloudflare；
-	// 启用后证书与 DNS 记录会自动创建，不要再手动为它建 A/CNAME 记录。
+
+	// ② 常用配置
+	"vars": {
+		"DEFAULT_LOCALE": "zh", // "zh" | "en"，构建期生效；访客可手动切换
+		"ABUSE_CONTACT": "", // 只认邮箱或 http(s) 网址；留空则页脚不显示举报入口（用途告知是内置的）
+		"MAX_MESSAGE_BYTES": "10485760",
+		"MAX_ATTACHMENT_BYTES": "10485760", // 单张图片上限；合计上限（50MB）硬编码在 src/config.ts
+		"RATE_LIMIT_MAX_CREATES": "30", // 每 IP 每分钟创建上限；不能设 "0"（会回退默认值）
+		"MAX_R2_STORAGE_GB": "5", // 桶可被消息预留的总量上限（GB，支持小数）；"0" = 不再收图片
+		"INITIAL_RESERVED_GB": "0" // 仅升级已在跑的实例时填（取 R2 控制台当前用量）；只播一次
+	},
+	// 有这一段就是「带图片的版本」，桶须保持私有；本文件里它是注释掉的
+	// "r2_buckets": [{ "binding": "BLOBS", "bucket_name": "1tmsg-blobs" }],
+	// 自定义域名（域名须已托管在 Cloudflare；证书与 DNS 会自动创建）
 	// "routes": [{ "pattern": "1tmsg.example.com", "custom_domain": true }],
-	// 启用上面的 routes 后本项会被默认关闭；只想走自定义域名就删掉这一行
-	"workers_dev": true,
+	"workers_dev": true, // 上面的 routes 生效后本项会被默认关闭
+
+	// ③ 机械配置
 	"assets": {
 		"directory": "./public",
-		"binding": "ASSETS", // 代码耦合：env.ASSETS
+		"binding": "ASSETS", // 代码耦合
 		"not_found_handling": "none"
 	},
-	// 图片密文的对象存储；有这一段就是「带图片的版本」。桶必须保持私有
-	// （不配公开域名、不签发 presigned URL），否则密文可被无限次下载。
-	// 建桶（桶名需与下面一致）：
-	//   npx wrangler r2 bucket create 1tmsg-blobs
-	//   npx wrangler r2 bucket lifecycle add 1tmsg-blobs expire-old --expire-days 7
-	//   （第二条是 7 天清理兜底；正常清理由 Durable Object Alarm 完成）
-	// "r2_buckets": [{ "binding": "BLOBS", "bucket_name": "1tmsg-blobs" }],
-	"vars": {
-		// 站点默认语言："zh" | "en"。构建期据此生成 src/i18n/active.ts 与页面文案，
-		// 缺省按 zh 处理；不做浏览器语言自动跟随 —— 站点语言就是这个值，访客可用右上角按钮手动切换
-		"DEFAULT_LOCALE": "zh",
-		// 举报联系方式（可选，但**建议填写**）：只能填**邮箱**或 **http(s) 网址**，构建期会校验。
-		// 它是页脚举报入口的唯一开关：留空则页脚不显示举报入口，构建日志里会显著提醒。
-		// 页脚那句「本服务仅限合法用途…」的用途告知是**内置**的，不需要配置。
-		// ⚠️ 必须是你能持续收信的地址 —— 收到举报的一方会被视为「有义务处置的人」，
-		//    所以别填不是你的地址。自己的实例请写进 wrangler.<自定义>.jsonc
-		//    （已被 .gitignore 忽略），不要改本文件 —— 它随仓库入库，改动会在 git pull 时被覆盖或冲突。
-		"ABUSE_CONTACT": "",
-		"MAX_MESSAGE_BYTES": "10485760",
-		"MAX_ATTACHMENT_BYTES": "104857600", // 单张图片上限；合计上限（200MB）硬编码在 src/config.ts
-		"RATE_LIMIT_MAX_CREATES": "30" // 每 IP 每分钟的创建上限
-	},
-	// 代码耦合：name 是 env 上的绑定名，class_name 必须与 src/ 导出的类名一致
+	// 代码耦合：binding 名与 class_name 必须与 src/ 的导出一致
 	"durable_objects": {
 		"bindings": [
 			{
@@ -62,16 +44,26 @@
 			{
 				"name": "RATE_LIMITER",
 				"class_name": "RateLimiter"
+			},
+			{
+				"name": "STORAGE_GUARD", // 全局容量计数器，单例 'global'（见 src/config.ts）
+				"class_name": "StorageGuard"
 			}
 		]
 	},
-	// 首次部署据此创建 SQLite 存储的 DO 命名空间；已有线上数据时不要回改本段
+	// 已有线上数据时不要回改本段；v2 只新增 StorageGuard，v1 不要动
 	"migrations": [
 		{
 			"tag": "v1",
 			"new_sqlite_classes": [
 				"MessageBox",
 				"RateLimiter"
+			]
+		},
+		{
+			"tag": "v2",
+			"new_sqlite_classes": [
+				"StorageGuard"
 			]
 		}
 	],

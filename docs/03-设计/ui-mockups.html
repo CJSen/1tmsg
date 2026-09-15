@@ -759,7 +759,7 @@ const key = crypto.getRandomValues(new Uint8Array(32));
 
             <div class="atray" id="atray" data-img-only hidden>
               <!-- 数值只是首屏兜底，mount 时会由 editor.ts 按 config.ts 覆盖。 -->
-              <span class="atip"><svg class="ico ico-15"><use href="#i-img"/></svg><span id="atipText">拖拽 / 粘贴 / 点图标插入图片，单张 ≤ 100MB，合计 ≤ 200MB，最多 8 张</span></span>
+              <span class="atip"><svg class="ico ico-15"><use href="#i-img"/></svg><span id="atipText">拖拽 / 粘贴 / 点图标插入图片，单张 ≤ 10MB，合计 ≤ 50MB，最多 8 张</span></span>
               <div class="thumbs" id="thumbs">
                 <!-- 正式代码初始为空、由 editor.ts 的 thumbNode() 生成；
                      这里放两张样本图，结构与生成结果逐字一致（.thumb > img + .x[data-remove]） -->
@@ -1193,8 +1193,8 @@ const key = crypto.getRandomValues(new Uint8Array(32));
 
 /* ===== config.ts 的常量（只抄本演示用得到的） ===== */
 const MB = 1024 * 1024;
-const MAX_ATTACHMENT_BYTES = 100 * MB;
-const MAX_TOTAL_ATTACHMENT_BYTES = 200 * MB;
+const MAX_ATTACHMENT_BYTES = 10 * MB;
+const MAX_TOTAL_ATTACHMENT_BYTES = 50 * MB;
 const MAX_ATTACHMENTS = 8;
 const MAX_NOTE_LENGTH = 120;
 const MIN_PASSWORD_LENGTH = 6;

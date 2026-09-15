@@ -44,6 +44,7 @@ const CODE_KEYS: Record<string, MsgKey> = {
   images_disabled: 'err.images_disabled',
   incomplete: 'err.incomplete',
   rate_limited: 'err.rate_limited',
+  storage_capacity_reached: 'err.storage_capacity_reached',
   id_collision: 'err.id_collision',
   method_not_allowed: 'err.method_not_allowed',
   length_required: 'err.length_required',

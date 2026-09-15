@@ -61,7 +61,7 @@ Simply put: **What you type in the box, even Cloudflare cannot see.**
 | | Text only (default) | With images |
 |---|---|---|
 | Config file | `wrangler.jsonc` | `wrangler.images.jsonc` |
-| What you can send | Text, Markdown | Text, Markdown, **images** (single ≤ 100 MB) |
+| What you can send | Text, Markdown | Text, Markdown, **images** (single ≤ 10 MB) |
 | R2 required | No | Yes —— R2 requires a payment method to enable |
 
 The two configs differ only by one `r2_buckets` declaration: commented out in `wrangler.jsonc`, active in `wrangler.images.jsonc` — **having this block means the image-capable version.**
@@ -238,7 +238,8 @@ It's recommended to configure a custom domain in the cf workers console for easi
 | **Use your own domain** | Edit `wrangler.jsonc`, uncomment the `routes` line and replace it with your domain, then `npm run deploy`. The domain must be hosted on Cloudflare; certificate and DNS records are created automatically — **do not** manually add A/CNAME |
 | **Change Worker name** | Change `name` in `wrangler.jsonc`. If image support is on, the bucket name in the create command must also stay consistent (or create a different bucket name and sync `bucket_name`) |
 | **Disable workers.dev fallback address** | Remove the `workers_dev` line from `wrangler.jsonc`, keeping only the custom domain |
-| **Adjust per-message / per-image limits** | Edit the `vars` in `wrangler.jsonc` (`MAX_MESSAGE_BYTES`, `MAX_ATTACHMENT_BYTES`, `RATE_LIMIT_MAX_CREATES`) then redeploy. The latter two only matter in the image version |
+| **Adjust per-message / per-image limits** | Edit the `vars` in `wrangler.jsonc` (`MAX_MESSAGE_BYTES`, `MAX_ATTACHMENT_BYTES`, `RATE_LIMIT_MAX_CREATES`) then redeploy. The latter two only matter in the image version. The **total per-message image cap** (50 MB by default) is not a var — it is hardcoded as `MAX_TOTAL_ATTACHMENT_BYTES` in `src/config.ts`, so changing it means editing source |
+| **Tighten total image capacity** | Edit `vars.MAX_R2_STORAGE_GB` in `wrangler.jsonc` (**in GB, decimals allowed**, e.g. `"5"` / `"0.5"`, default `"5"`) then redeploy. It caps **how much space the whole service may reserve for messages**: once full, creations with images return `507 storage_capacity_reached` while text-only messages keep working; `"0"` stops accepting images entirely. ⚠️ Before **upgrading a running instance**, check the bucket's current usage in the R2 dashboard (also shown in GB) and put it into `vars.INITIAL_RESERVED_GB` — otherwise existing data counts as zero, effectively handing out 5 GB extra. That seed is applied only when the counter is first created (see "Capacity guard" below) |
 | **Configure a report channel** | Edit `vars.ABUSE_CONTACT` in `wrangler.jsonc` (**accepts an email or an `http(s)` URL only**, validated at build time), then `npm run deploy` again. **Leaving it empty hides the report entry in the footer**, and the build log prints a prominent reminder (recommended to fill in); use an address you will keep checking. The footer's "lawful use only…" notice **is built in** and needs no configuration (see "Before going public" below) |
 | **Update version** | `git pull && npm run deploy` to overwrite-upgrade. **Keep your own domain, bucket name and switches in a separate config file** (e.g. `wrangler.me.jsonc`, see the tip above) and point `-c` at it — editing `wrangler.jsonc` directly gets overwritten or conflicts on `git pull` |
 
@@ -260,8 +261,9 @@ It's recommended to configure a custom domain in the cf workers console for easi
 
 | Item | Value |
 |---|---|
-| Single image ※ | ≤ 100 MB, up to 8 images |
-| Total images ※ | ≤ 200 MB / message |
+| Single image ※ | ≤ 10 MB, up to 8 images |
+| Total images ※ | ≤ 50 MB / message (tighter than "10 MB × 8", so this is what really limits the count) |
+| Total image capacity ※ | ≤ 5 GB by default (`vars.MAX_R2_STORAGE_GB`, adjustable; once full only text messages can be sent) |
 | Text content | ≤ 10 MB |
 | Expiration time | 3 minutes – 7 days, default 1 hour |
 | View count | 1 – 100, default 5 (available when burn-after-reading is off) |
@@ -270,6 +272,17 @@ It's recommended to configure a custom domain in the cf workers console for easi
 | Creation rate | 30 messages / IP / minute |
 
 > ※ Only present in the image version (`wrangler.images.jsonc`); the text-only version (`wrangler.jsonc`) doesn't use these.
+
+### Capacity guard: total image storage cannot grow without bound
+
+For a public service the real risk is not one oversized message but **unbounded total growth** — with enough IPs and enough time, the bucket just keeps growing. So the image version carries a site-wide ceiling:
+
+- Every creation with images first atomically reserves the **declared image size** in a global counter (`MAX_R2_STORAGE_GB`, default 5 GB). If it does not fit, the request returns `507` and the message is never created.
+- When a message is destroyed, times out while uploading, or expires, the reservation is returned — each message returns it **at most once**, never twice.
+- The check and the increment are a single atomic operation, so **concurrent creations cannot push the total past the cap**.
+- The counter tracks "space already promised", not live R2 usage; real usage is always lower, so seeing "reserved > actually stored" is normal.
+
+The counter lives in its own Durable Object (`StorageGuard`) and is unreachable from the outside. R2 lifecycle rules are still in place as a last resort for stray objects; but **automatic deletion does not notify the Worker**, so reservations are not released that way — they follow the message lifecycle instead.
 
 ---
 

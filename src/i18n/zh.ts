@@ -270,6 +270,7 @@ export const zh = {
   'err.images_disabled': '本服务未启用图片功能',
   'err.incomplete': '还有图片没有上传完成',
   'err.rate_limited': '创建太频繁了，请 {n} 秒后再试',
+  'err.storage_capacity_reached': '服务存储容量已满，暂时无法发送图片。可以去掉图片只发文字，或稍后再试',
   'err.id_collision': '服务暂时不可用，请重试',
   'err.method_not_allowed': '请求方法不被允许',
   'err.length_required': '请求缺少长度信息',

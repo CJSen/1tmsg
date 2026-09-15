@@ -9,6 +9,7 @@
     "dev": "node scripts/run.mjs --dev",
     "deploy": "node scripts/run.mjs",
     "locale": "node scripts/sync-locale.mjs",
+    "test": "node test/storage-guard.mjs",
     "typecheck": "node scripts/sync-locale.mjs && tsc -p tsconfig.json --noEmit && tsc -p tsconfig.client.json --noEmit"
   },
   "dependencies": {
